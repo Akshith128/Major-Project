@@ -3,7 +3,7 @@ import unittest
 
 from aegis import audit, auth, config, control, data
 from aegis.agents import governance_agent, monitoring_score, risk_agent
-from aegis.evaluation import confusion, mcnemar, wilson
+from aegis.evaluation import confusion, expected_attack_type, mcnemar, wilson
 from aegis.graph import build_graph
 from aegis.llm import NoLLM, parse_json, LLMUnavailable
 from aegis.runs import ReviewNotAllowed, RunPaused, RunService
@@ -151,6 +151,44 @@ class GraphTests(unittest.TestCase):
         self.assertEqual(state["governance"]["decision"], "PENDING_REVIEW")
 
 
+class HybridTests(unittest.TestCase):
+    detector = {
+        "method": "isolation-forest (benign-trained)", "anomalous": True, "anomaly_score": 0.7, "threshold": 0.55,
+        "score": 0.8, "confidence": 99, "deviations": ["rst_share = 1 (4.0 IQR above normal 0.09)"],
+        "similar_incidents": [{"family": "DoS", "day": "DoS2", "distance": 1.0}] * 3,
+    }
+
+    def run_graph(self, llm, detector):
+        window = {"index": 1, "features": GraphTests.features_attack, "detector": detector}
+        return build_graph(llm).invoke({"window": window, "context": {}, "trace": []})
+
+    def test_detector_decides_and_llm_explains(self):
+        state = self.run_graph(FakeLLM(), self.detector)
+        d = state["detection"]
+        self.assertTrue(d["threat"])
+        self.assertEqual((d["source"], d["attack_type"], d["confidence"]), ("hybrid", "DDoS", 99))
+        self.assertIn("T1498 Network Denial of Service", d["attack_techniques"])
+        self.assertEqual(state["monitoring"]["method"], "isolation-forest (benign-trained)")
+
+    def test_normal_window_never_reaches_the_llm(self):
+        llm = FakeLLM()
+        state = self.run_graph(llm, {**self.detector, "anomalous": False, "score": 0.2})
+        self.assertEqual(state["trace"], ["monitoring", "governance"])
+        self.assertEqual(llm.prompts, [])
+
+    def test_llm_can_raise_but_not_lower_severity(self):
+        low = {**self.detector, "confidence": 10, "score": 0.0}
+        raised = self.run_graph(FakeLLM(explanation={"attack_type": "Port Scan", "severity_hint": "CRITICAL", "explanation": "x"}), low)
+        self.assertEqual(raised["risk"]["severity"], "CRITICAL")
+        lowered = self.run_graph(FakeLLM(explanation={"attack_type": "DDoS", "severity_hint": "LOW", "explanation": "x"}), self.detector)
+        self.assertEqual(lowered["risk"]["severity"], "CRITICAL")
+
+    def test_without_llm_family_comes_from_similar_incidents(self):
+        state = self.run_graph(FakeLLM(fail=True), self.detector)
+        self.assertEqual((state["detection"]["source"], state["detection"]["attack_type"]), ("anomaly", "DoS"))
+        self.assertEqual(state["governance"]["decision"], "PENDING_REVIEW")
+
+
 class AuditTests(unittest.TestCase):
     def setUp(self):
         isolate(self)
@@ -203,6 +241,12 @@ class EvaluationTests(unittest.TestCase):
         self.assertLess(low, 0.6)
         self.assertGreater(high, 0.95)
 
+    def test_attack_labels_map_to_families(self):
+        cases = {"Bot": "Botnet", "DDOS attack-HOIC": "DDoS", "DoS attacks-Hulk": "DoS",
+                 "SSH-Bruteforce": "Brute Force", "Brute Force -Web": "Web Attack", "SQL Injection": "Web Attack"}
+        for label, family in cases.items():
+            self.assertEqual(expected_attack_type(label), family)
+
     def test_mcnemar_counts_discordant_windows(self):
         result = mcnemar([True] * 10, [True] * 10, [False] * 10)
         self.assertEqual((result["a_only_correct"], result["b_only_correct"]), (10, 0))
@@ -238,6 +282,15 @@ class RunServiceTests(unittest.TestCase):
         self.assertIn("attack_share", run["windows"][0]["baselines"]["random_forest"])
         pairs = {(c["a"], c["b"]) for c in run["evaluation"]["comparisons"]}
         self.assertIn(("pipeline", "random_forest"), pairs)
+
+    def test_hybrid_run_uses_anomaly_detector(self):
+        make_dataset(self.dir, name="other-day.parquet", seed=11)
+        run = self.service(FakeLLM()).start(self.dataset, windows=6, window_size=100, mode="hybrid", background=False)
+        self.assertEqual(run["status"], "COMPLETED")
+        self.assertEqual(run["detector"]["baseline"], "same-network")
+        self.assertEqual(run["windows"][0]["monitoring"]["method"], "isolation-forest (benign-trained)")
+        self.assertIn("detector", run["windows"][0])
+        self.assertIn("attack_typing", run["evaluation"])
 
     def test_pause_blocks_new_runs(self):
         control.set_paused(True, "user:boss", "Investigating")

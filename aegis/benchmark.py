@@ -19,13 +19,14 @@ Results go to reports/benchmark-<time>.json and .md. No audit trail is written.
 
 import argparse
 import json
+import sys
 from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
 from statistics import mean, stdev
 
-from . import config, data
-from .evaluation import confusion, evaluate
+from . import anomaly, config, data
+from .evaluation import confusion, dominant_attack_label, evaluate
 from .graph import build_graph
 from .llm import GeminiLLM, NoLLM
 from .runs import analyse_window, baseline_verdicts
@@ -49,12 +50,13 @@ def _verdicts(windows: list[dict]) -> dict:
 
 
 def run(args) -> dict:
-    llm = NoLLM() if args.mode == "rules" else GeminiLLM()
+    llm = NoLLM() if args.mode == "rules" or args.no_llm else GeminiLLM()
     if args.mode == "gemini" and not llm.configured:
         raise SystemExit("Gemini mode needs GOOGLE_API_KEY in .env.")
     if not llm.configured:
         llm = NoLLM()
     graph = build_graph(llm)
+    detector_info = {}
 
     datasets = [
         d for d in data.list_datasets()
@@ -73,6 +75,12 @@ def run(args) -> dict:
                 ablate_tcp_window=args.ablate_tcp_window, include_flows=True,
             )
             per_window, _ = baseline_verdicts(d["dataset_id"], loaded, args.label_threshold, args.ablate_tcp_window)
+            if args.mode == "hybrid":
+                evidence, detector_info[d["dataset_id"]] = anomaly.score(
+                    d["dataset_id"], loaded, args.window_size, args.baseline, args.ablate_tcp_window
+                )
+                for w, ev in zip(loaded, evidence):
+                    w["detector"] = ev
             for w in loaded:
                 w.pop("flows")
             for repeat in range(args.repeats):
@@ -95,6 +103,7 @@ def run(args) -> dict:
         },
         "windows": len(first),
         "pooled": evaluate(first),
+        "detector": detector_info or None,
     }
 
     # Sampling variance: one evaluation per seed.
@@ -134,6 +143,26 @@ def run(args) -> dict:
         for label, ws in sorted(by_label.items())
     }
 
+    # Per-window verdicts, so two benchmarks over the same windows can be paired.
+    report["window_results"] = [
+        {
+            "dataset": r["dataset"],
+            "seed": r["seed"],
+            "repeat": r["repeat"],
+            "index": r["index"],
+            "row_start": r["row_start"],
+            "is_attack": r["truth"]["is_attack"],
+            "attack_label": dominant_attack_label(r),
+            "score": r["monitoring"]["score"],
+            "verdicts": {name: get(r) for name, get in DETECTORS.items()},
+            "attack_type": r.get("detection", {}).get("attack_type"),
+            "confidence": r.get("detection", {}).get("confidence"),
+            "source": r.get("detection", {}).get("source"),
+            "decision": r["governance"]["decision"],
+        }
+        for r in results
+    ]
+
     # LLM non-determinism: same windows, repeated.
     if args.repeats > 1:
         groups = defaultdict(set)
@@ -159,7 +188,8 @@ def markdown(report: dict) -> str:
         "# AEGIS benchmark",
         "",
         f"{report['windows']} windows ({s['windows_per_file']} per day-file × {len(s['datasets'])} day-files × "
-        f"{s['seeds']} seeds), {s['window_size']} flows each, reasoning: {s['provider']}"
+        f"{s['seeds']} seeds), {s['window_size']} flows each, mode: {s['mode']}"
+        f"{' (' + s['baseline'] + ' baseline)' if s['mode'] == 'hybrid' else ''}, reasoning: {s['provider']}"
         f"{' ' + s['model'] if s['model'] else ''}. Label threshold {s['label_threshold']}"
         f"{', TCP-window feature removed' if s['ablate_tcp_window'] else ''}. "
         f"Attack prevalence {pooled['pipeline']['prevalence']}.",
@@ -196,6 +226,7 @@ def markdown(report: dict) -> str:
     for label, r in report["recall_by_attack_label"].items():
         lines.append(f"| {label} | {r['windows']} | " + " | ".join(_fmt(r.get(n)) for n in rows) + " |")
     auc, cal, ops, gov = pooled["monitoring_auc"], pooled["calibration"], pooled["operations"], pooled["governance"]
+    typing = pooled["attack_typing"]
     lines += [
         "",
         "## Monitoring score, calibration, governance and cost",
@@ -203,6 +234,8 @@ def markdown(report: dict) -> str:
         f"- Monitoring score ROC-AUC {_fmt(auc.get('roc_auc'))}, PR-AUC {_fmt(auc.get('pr_auc'))}.",
         f"- LLM confidence calibration: {cal.get('n', 0)} Gemini decisions, ECE {_fmt(cal.get('ece'))}, Brier {_fmt(cal.get('brier'))}; "
         f"accuracy at confidence ≥80: {_fmt(cal.get('accuracy_conf_ge_80'))}, below 80: {_fmt(cal.get('accuracy_conf_lt_80'))}.",
+        f"- Attack typing: {typing.get('correct', 0)}/{typing.get('n', 0)} caught attacks named correctly "
+        f"({_fmt(typing.get('accuracy'))}); mistakes: {typing.get('confusions') or 'none'}.",
         f"- Governance: review load {_fmt(gov['review_load'])}, auto-approval precision {_fmt(gov['auto_approval_precision'])} "
         f"({gov['auto_approved_benign']} benign windows auto-approved), escalation recall {_fmt(gov['escalation_recall'])}.",
         f"- Cost: {ops['llm_calls']} LLM calls, escalation rate {_fmt(ops['escalation_rate'])}, fallback rate {_fmt(ops['detection_fallback_rate'])}, "
@@ -224,7 +257,10 @@ def main() -> None:
     parser.add_argument("--window-size", type=int, default=100)
     parser.add_argument("--seeds", type=int, default=3)
     parser.add_argument("--repeats", type=int, default=1, help="LLM repeats on identical windows")
-    parser.add_argument("--mode", choices=["auto", "gemini", "rules"], default="rules")
+    parser.add_argument("--mode", choices=["auto", "gemini", "rules", "hybrid"], default="rules")
+    parser.add_argument("--baseline", choices=list(anomaly.BASELINES), default="same-network",
+                        help="hybrid: how the anomaly detector learns normal traffic")
+    parser.add_argument("--no-llm", action="store_true", help="hybrid without Gemini (detector-only, no API cost)")
     parser.add_argument("--label-threshold", type=float, default=0.5)
     parser.add_argument("--ablate-tcp-window", action="store_true")
     parser.add_argument("--include-infiltration", action="store_true")
@@ -237,6 +273,7 @@ def main() -> None:
     Path(out).parent.mkdir(parents=True, exist_ok=True)
     Path(out + ".json").write_text(json.dumps(report, indent=1), encoding="utf-8")
     Path(out + ".md").write_text(markdown(report), encoding="utf-8")
+    sys.stdout.reconfigure(errors="replace")  # Windows consoles may not encode ≥ or ±
     print(markdown(report))
     print(f"Saved {out}.json and {out}.md")
 

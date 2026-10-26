@@ -8,7 +8,7 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import audit, baselines, config, control, data
+from . import anomaly, audit, baselines, config, control, data
 from .evaluation import evaluate
 from .graph import build_graph
 from .llm import GeminiLLM, NoLLM
@@ -63,7 +63,7 @@ def summarize(windows: list[dict]) -> dict:
 
 def analyse_window(graph, window: dict, prior: Counter, baseline: dict | None = None) -> dict:
     """Run one window through the agents, then attach truth and baselines for evaluation."""
-    agent_view = {k: window[k] for k in ("index", "row_start", "row_end", "features")}
+    agent_view = {k: window[k] for k in ("index", "row_start", "row_end", "features", "detector") if k in window}
     state = graph.invoke({"window": agent_view, "context": {"prior_incidents": dict(prior)}, "trace": []})
     result = {
         **agent_view,
@@ -145,17 +145,20 @@ class RunService:
         user: dict | None = None,
         background: bool = True,
         seed: int | None = None,
+        detector_baseline: str = "same-network",
     ) -> dict:
         user = user or DEFAULT_USER
         if control.is_paused():
             raise RunPaused("AEGIS is paused by a security manager. Resume it before starting a run.")
-        if mode not in ("auto", "gemini", "rules"):
+        if mode not in ("auto", "gemini", "rules", "hybrid"):
             raise ValueError(f"Unknown mode: {mode}")
         llm = self._llm_factory(mode)
         if not llm.configured and mode == "gemini":
             raise ValueError("Gemini mode needs GOOGLE_API_KEY in .env.")
         if not llm.configured:
             llm = NoLLM()
+        if detector_baseline not in anomaly.BASELINES:
+            raise ValueError(f"Unknown detector baseline: {detector_baseline}")
         loaded = data.load_windows(
             dataset_id, windows, window_size, sampling, start_row, seed=seed, include_flows=self._baselines
         )
@@ -182,12 +185,14 @@ class RunService:
                 "mode": mode,
                 "seed": seed,
                 "label_threshold": 0.5,
+                **({"detector_baseline": detector_baseline} if mode == "hybrid" else {}),
             },
             "dataset_caution": note["caution"],
             "llm": {"provider": llm.provider, "model": llm.model},
             "progress": {"done": 0, "total": len(loaded)},
             "windows": [],
             "baselines": None,
+            "detector": None,
             "summary": None,
             "evaluation": None,
             "audit": [],
@@ -208,6 +213,12 @@ class RunService:
         prior: Counter = Counter()
         try:
             per_window = [None] * len(loaded)
+            if run["config"]["mode"] == "hybrid":
+                evidence, run["detector"] = anomaly.score(
+                    run["config"]["dataset_id"], loaded, run["config"]["window_size"], run["config"]["detector_baseline"]
+                )
+                for window, ev in zip(loaded, evidence):
+                    window["detector"] = ev
             if self._baselines:
                 per_window, run["baselines"] = baseline_verdicts(run["config"]["dataset_id"], loaded)
                 for window in loaded:

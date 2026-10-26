@@ -150,6 +150,44 @@ def calibration(windows: list[dict], bins: int = 5) -> dict:
     }
 
 
+def expected_attack_type(label: str) -> str:
+    """Map a CIC-IDS2018 label to the attack family the detection agent should name."""
+    lowered = label.lower()
+    if lowered.startswith("bot"):
+        return "Botnet"
+    if "ddos" in lowered:
+        return "DDoS"
+    if lowered.startswith("dos"):
+        return "DoS"
+    if "infil" in lowered:
+        return "Infiltration"
+    if "-web" in lowered or "xss" in lowered or "sql" in lowered:
+        return "Web Attack"
+    if "brute" in lowered:
+        return "Brute Force"
+    return "Unknown"
+
+
+def dominant_attack_label(window: dict) -> str | None:
+    attacks = {k: v for k, v in window["truth"]["label_counts"].items() if k != "Benign"}
+    return max(attacks, key=attacks.get) if attacks else None
+
+
+def attack_typing(windows: list[dict]) -> dict:
+    """Of the true attacks the pipeline caught, how often did it name the right family?"""
+    caught = [w for w in windows if w["truth"]["is_attack"] and w.get("detection", {}).get("threat")]
+    if not caught:
+        return {"n": 0}
+    pairs = [(expected_attack_type(dominant_attack_label(w)), w["detection"]["attack_type"]) for w in caught]
+    confusions = {}
+    for expected, named in pairs:
+        if expected != named:
+            key = f"{expected} -> {named}"
+            confusions[key] = confusions.get(key, 0) + 1
+    correct = sum(e == n for e, n in pairs)
+    return {"n": len(pairs), "correct": correct, "accuracy": _ratio(correct, len(pairs)), "confusions": confusions}
+
+
 def governance_metrics(windows: list[dict]) -> dict:
     threats = [w for w in windows if w.get("detection", {}).get("threat")]
     auto = [w for w in threats if w["governance"]["decision"] == "AUTO_APPROVED"]
@@ -214,6 +252,7 @@ def evaluate(windows: list[dict]) -> dict:
         ],
         "monitoring_auc": score_auc(truth, [w["monitoring"]["score"] for w in windows]),
         "calibration": calibration(windows),
+        "attack_typing": attack_typing(windows),
         "governance": governance_metrics(windows),
         "operations": operations(windows),
     }

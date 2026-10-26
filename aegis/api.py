@@ -28,8 +28,9 @@ class RunRequest(BaseModel):
     window_size: int = Field(100, ge=10, le=5000)
     sampling: Literal["spread", "sequential"] = "spread"
     start_row: int = Field(0, ge=0)
-    mode: Literal["auto", "gemini", "rules"] = "auto"
+    mode: Literal["auto", "gemini", "rules", "hybrid"] = "auto"
     seed: int | None = Field(None, ge=0)
+    detector_baseline: Literal["same-network", "cross-day"] = "same-network"
 
 
 class ReviewRequest(BaseModel):

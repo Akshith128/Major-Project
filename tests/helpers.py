@@ -70,7 +70,8 @@ class FakeLLM:
     configured = True
     last_meta: dict = {}
 
-    def __init__(self, detection=None, fail=False):
+    def __init__(self, detection=None, fail=False, explanation=None):
+        self.explanation = explanation or {"attack_type": "DDoS", "severity_hint": None, "explanation": "Flood of identical flows."}
         self.detection = detection or {
             "threat": True,
             "attack_type": "DDoS",
@@ -85,6 +86,8 @@ class FakeLLM:
         if self.fail:
             raise LLMUnavailable("offline")
         self.last_meta = {"model_version": "fake-001", "latency_ms": 5, "tokens_in": 100, "tokens_out": 20}
+        if "NOT to decide" in prompt:
+            return self.explanation
         if "response agent" in prompt:
             return {"actions": ["Rate-limit the service", "Block sources"], "rationale": "Contain flood."}
         return self.detection

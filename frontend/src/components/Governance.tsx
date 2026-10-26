@@ -74,6 +74,12 @@ function EvaluationPanel({ run, evaluation: ev }: { run: Run; evaluation: Evalua
           </tbody>
         </table>
       </div>
+      {run.detector && (
+        <p className="m-0 text-xs text-muted">
+          Decided by a benign-trained anomaly detector ({run.detector.baseline} baseline: {run.detector.sources.join('; ')}),
+          threshold set for a {Math.round(run.detector.false_alarm_budget * 100)}% false-alarm budget on normal traffic.
+        </p>
+      )}
       <p className="m-0 text-xs text-muted">
         {rf?.available
           ? `Random Forest trained on ${rf.training_flows?.toLocaleString()} flows from ${rf.trained_on?.length} other day-files — never on this run's day.`

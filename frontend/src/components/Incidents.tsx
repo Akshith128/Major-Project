@@ -140,11 +140,27 @@ function WindowDetail({
         <div className="flex flex-col gap-3">
           <Kicker>Agent trace</Kicker>
           <ol className="m-0 flex list-none flex-col gap-3 p-0">
-            <Step name="1 · Monitoring agent" source="rules">
-              <span>
-                Score <span className="font-mono text-fg">{w.monitoring.score}</span> vs gate {w.monitoring.threshold} →{' '}
-                {w.monitoring.suspicious ? 'suspicious, sent to detection' : 'clear'}
-              </span>
+            <Step name={w.detector ? '1 · Monitoring · anomaly detector' : '1 · Monitoring agent'} source="rules">
+              {w.detector ? (
+                <>
+                  <span>
+                    Anomaly score <span className="font-mono text-fg">{w.detector.anomaly_score}</span> vs threshold {w.detector.threshold} →{' '}
+                    {w.detector.anomalous ? 'abnormal, sent to the explaining agent' : 'within normal traffic'}
+                  </span>
+                  <span>Looks less normal than {w.detector.confidence}% of known-normal windows.</span>
+                  {w.detector.similar_incidents.length > 0 && (
+                    <span>
+                      Similar known incidents:{' '}
+                      {w.detector.similar_incidents.map((n) => `${n.family} (${n.day}, ${n.distance})`).join(' · ')}
+                    </span>
+                  )}
+                </>
+              ) : (
+                <span>
+                  Score <span className="font-mono text-fg">{w.monitoring.score}</span> vs gate {w.monitoring.threshold} →{' '}
+                  {w.monitoring.suspicious ? 'suspicious, sent to detection' : 'clear'}
+                </span>
+              )}
               <span className="relative block h-1.5 max-w-xs rounded-full bg-panel-2" aria-hidden="true">
                 <span className={`block h-full rounded-full ${w.monitoring.suspicious ? 'bg-warn' : 'bg-signal'}`} style={{ width: `${w.monitoring.score * 100}%` }} />
                 <span className="absolute -top-1 h-3.5 w-0.5 bg-warn" style={{ left: `${w.monitoring.threshold * 100}%` }} />
@@ -152,7 +168,7 @@ function WindowDetail({
               {w.monitoring.signals.length > 0 && <span>{w.monitoring.signals.join(' · ')}</span>}
             </Step>
             {w.detection && (
-              <Step name="2 · Detection agent" source={w.detection.source}>
+              <Step name={w.detection.decided_by ? '2 · Detection · explaining agent' : '2 · Detection agent'} source={w.detection.source}>
                 <span>
                   {w.detection.threat ? `Threat: ${w.detection.attack_type}` : 'No threat'} · confidence {w.detection.confidence}
                 </span>
@@ -165,6 +181,11 @@ function WindowDetail({
                   {w.detection.reasoning}
                 </span>
                 {w.detection.note && <span className="text-xs text-muted">Fallback reason: {w.detection.note}</span>}
+                {w.detection.attack_techniques && w.detection.attack_techniques.length > 0 && (
+                  <span>
+                    MITRE ATT&CK: <span className="font-mono text-xs text-fg">{w.detection.attack_techniques.join(' · ')}</span>
+                  </span>
+                )}
                 <ProvenanceLine p={w.detection.provenance} />
               </Step>
             )}

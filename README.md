@@ -67,6 +67,20 @@ p = 1.0), and without that feature the rules pipeline fell to MCC 0.40. A
 Random Forest trained on other days scored MCC 0.21: each day-file holds a
 different attack, so cross-day detection is hard for every method.
 
+**Hybrid mode** (`mode: "hybrid"`, or `--mode hybrid` in the benchmark):
+`aegis/anomaly.py` trains an Isolation Forest on *normal* traffic windows only
+(from the same capture, never overlapping the windows being judged, or with
+`--baseline cross-day` from other day-files). It flags windows outside a fixed
+5% false-alarm budget and decides the verdict. Gemini then explains the window,
+names the attack family and drafts the response. It sees the deviating features
+and the most similar known incidents from other days, may raise severity but
+never lower it, and ATT&CK techniques come from a fixed table. On the same
+400 windows the detector scored MCC 0.56, against 0.67 for rules and 0.63 for
+Gemini. With the TCP-window shortcut removed it scored 0.61, against 0.42 for
+rules. Attack families from similar-incident retrieval were 62% correct, against
+7–11% from Gemini. Full comparison: `reports/hybrid-evaluation.md`.
+`--no-llm` benchmarks the detector without spending Gemini quota.
+
 **Threats to validity.** The original CSE-CIC-IDS2018 labels have documented
 errors (Engelen et al. 2021; Liu et al. 2022). AEGIS flags them per day-file
 (`data.DATASET_NOTES`): Infiltration days are excluded from the benchmark and
@@ -85,6 +99,7 @@ aegis/          backend package
   llm.py          Gemini client (JSON replies, model version, tokens) and rules-only mode
   runs.py         run execution, storage (data/runs/*.json), reviews
   audit.py        hash-chained, HMAC-signed audit trail with checkpoints
+  anomaly.py      benign-trained anomaly detector + similar-incident retrieval (hybrid)
   baselines.py    Random Forest (other day-files) and TCP-window rule baselines
   evaluation.py   MCC, intervals, McNemar, AUC, calibration, governance, cost
   benchmark.py    multi-day, multi-seed evaluation (python -m aegis.benchmark)
@@ -142,7 +157,7 @@ Command line only:
 ```
 
 `--mode auto` (default) uses Gemini when a key is set, `gemini` requires it,
-`rules` never calls it.
+`rules` never calls it, `hybrid` lets the anomaly detector decide and Gemini explain.
 
 ## Tests
 

@@ -20,6 +20,11 @@ const MODES: { id: RunMode; label: string; title: (gemini: boolean) => string }[
   { id: 'auto', label: 'Auto', title: (g) => (g ? 'Gemini, with rule fallback' : 'Rules (Gemini not configured)') },
   { id: 'gemini', label: 'Gemini', title: (g) => (g ? 'Force Gemini reasoning' : 'Needs GOOGLE_API_KEY in .env') },
   { id: 'rules', label: 'Rules', title: () => 'Deterministic thresholds only' },
+  {
+    id: 'hybrid',
+    label: 'Hybrid',
+    title: (g) => (g ? 'Anomaly detector decides; Gemini explains, types and plans' : 'Anomaly detector decides; no Gemini, so explanations fall back'),
+  },
 ];
 
 function NewRunForm({
@@ -80,7 +85,9 @@ function NewRunForm({
     `${config.windows || 0} windows × ${config.window_size || 0} flows` +
     (config.dataset_id ? ` from ${datasetLabel(config.dataset_id)}` : '') +
     `, ${config.sampling === 'spread' ? 'spread across the capture' : `sequential from row ${config.start_row}`}` +
-    ` · detection by ${usesGemini ? 'Gemini (rule fallback on error)' : 'rules (score ≥ 0.75)'}`;
+    (config.mode === 'hybrid'
+      ? ` · a benign-trained anomaly detector decides (5% false-alarm budget); ${gemini ? 'Gemini explains, maps to ATT&CK and plans' : 'no Gemini key, so families come from similar past incidents'}`
+      : ` · detection by ${usesGemini ? 'Gemini (rule fallback on error)' : 'rules (score ≥ 0.75)'}`);
 
   return (
     <Panel title="Start a monitoring run" meta={gemini ? `Gemini · ${health?.gemini.model}` : 'Gemini not configured · rules only'}>

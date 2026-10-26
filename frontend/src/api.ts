@@ -7,7 +7,7 @@ const BASE = import.meta.env.VITE_AEGIS_API_URL || 'http://127.0.0.1:8000';
 export type Severity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 export type GovernanceDecision = 'NO_ACTION' | 'AUTO_APPROVED' | 'PENDING_REVIEW';
 export type RunStatus = 'RUNNING' | 'COMPLETED' | 'FAILED' | 'STOPPED';
-export type RunMode = 'auto' | 'gemini' | 'rules';
+export type RunMode = 'auto' | 'gemini' | 'rules' | 'hybrid';
 export type Role = 'analyst' | 'responder' | 'manager' | 'researcher';
 export type Permission = 'run' | 'review' | 'control';
 
@@ -64,12 +64,25 @@ export interface Provenance {
   error?: string;
 }
 
+/** Benign-trained anomaly detector's verdict and evidence for one window (hybrid mode). */
+export interface DetectorEvidence {
+  method: string;
+  anomalous: boolean;
+  anomaly_score: number;
+  threshold: number;
+  score: number;
+  confidence: number;
+  deviations: string[];
+  similar_incidents: { family: string; day: string; distance: number }[];
+}
+
 export interface WindowResult {
   index: number;
   row_start: number;
   row_end: number;
   features: Record<string, number>;
-  monitoring: { score: number; suspicious: boolean; threshold: number; signals: string[] };
+  monitoring: { score: number; suspicious: boolean; threshold: number; signals: string[]; method?: string; homogeneity_score?: number };
+  detector?: DetectorEvidence;
   detection?: {
     threat: boolean;
     attack_type: string | null;
@@ -78,6 +91,9 @@ export interface WindowResult {
     source: string;
     note?: string;
     provenance?: Provenance;
+    severity_hint?: Severity | null;
+    attack_techniques?: string[];
+    decided_by?: string;
   };
   risk?: { score: number; severity: Severity; factors: string[] };
   response?: { actions: string[]; rationale: string; source: string; execution: string; note?: string; provenance?: Provenance };
@@ -188,6 +204,7 @@ export interface RunConfig {
   start_row: number;
   mode: RunMode;
   seed?: number | null;
+  detector_baseline?: 'same-network' | 'cross-day';
 }
 
 export interface RunListItem {
@@ -206,6 +223,15 @@ export interface Run extends RunListItem {
   evaluation: Evaluation | null;
   baselines: Record<string, { available: boolean; reason?: string; trained_on?: string[]; training_flows?: number }> | null;
   dataset_caution?: string | null;
+  detector?: {
+    method: string;
+    baseline: string;
+    normal_windows: number;
+    sources: string[];
+    known_incidents: number;
+    threshold: number;
+    false_alarm_budget: number;
+  } | null;
   audit: AuditRecord[];
   error: string | null;
 }

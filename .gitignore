@@ -14,3 +14,4 @@ data/models/
 data/users.json
 data/control.json
 reports/benchmark-*
+data/demo-login.txt
