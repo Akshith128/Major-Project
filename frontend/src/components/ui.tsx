@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { PredictionClass, SeverityLevel } from '../types/aegis';
+import type { GovernanceDecision, Severity, WindowResult } from '../api';
 
 export function ShieldMark({ size = 28, className = 'text-signal' }: { size?: number; className?: string }) {
   return (
@@ -22,9 +22,7 @@ export function ShieldMark({ size = 28, className = 'text-signal' }: { size?: nu
 }
 
 export function Kicker({ children, className = 'text-muted' }: { children: ReactNode; className?: string }) {
-  return (
-    <p className={`m-0 font-mono text-xs uppercase tracking-[0.14em] ${className}`}>{children}</p>
-  );
+  return <p className={`m-0 font-mono text-xs uppercase tracking-[0.14em] ${className}`}>{children}</p>;
 }
 
 export function Panel({
@@ -53,33 +51,32 @@ export function Panel({
   );
 }
 
-const SEVERITY_STYLES: Record<SeverityLevel, string> = {
+const BADGE = 'inline-block rounded-full border px-2.5 py-0.5 font-mono text-xs font-bold whitespace-nowrap';
+
+const SEVERITY_STYLES: Record<Severity, string> = {
   CRITICAL: 'bg-[#3A1418] text-crit border-[#6B2A30]',
   HIGH: 'bg-[#3A2A0C] text-warn border-[#6B4F1A]',
   MEDIUM: 'bg-[#13283A] text-[#7CCBFF] border-[#24496B]',
   LOW: 'bg-panel-2 text-soft border-line-strong',
-  NOMINAL: 'bg-panel-2 text-soft border-line-strong',
 };
 
-export function SeverityBadge({ severity }: { severity: SeverityLevel }) {
-  return (
-    <span
-      className={`inline-block rounded-full border px-2.5 py-0.5 font-mono text-xs font-bold ${SEVERITY_STYLES[severity]}`}
-    >
-      {severity}
-    </span>
-  );
+export function SeverityBadge({ severity }: { severity?: Severity }) {
+  if (!severity) return <span className="font-mono text-xs text-muted">—</span>;
+  return <span className={`${BADGE} ${SEVERITY_STYLES[severity]}`}>{severity}</span>;
 }
 
-export function Verdict({ value }: { value: PredictionClass | null }) {
-  if (value === null) {
-    return <span className="font-mono text-xs font-bold text-muted">NO VERDICT</span>;
-  }
-  return (
-    <span className={`font-mono text-xs font-bold ${value === 'ATTACK' ? 'text-crit' : 'text-ok'}`}>
-      {value}
-    </span>
-  );
+/** Governance outcome, including the analyst's review once made. */
+export function DecisionBadge({ window: w }: { window: WindowResult }) {
+  const decision: GovernanceDecision | 'APPROVED' | 'REJECTED' = w.review?.decision ?? w.governance.decision;
+  const styles: Record<typeof decision, [string, string]> = {
+    NO_ACTION: ['No action', 'bg-panel-2 text-soft border-line-strong'],
+    AUTO_APPROVED: ['Auto-approved', 'bg-[#0F2E22] text-ok border-[#1E5A41]'],
+    PENDING_REVIEW: ['Needs review', 'bg-[#3A2A0C] text-warn border-[#6B4F1A]'],
+    APPROVED: ['Approved', 'bg-[#0F2E22] text-ok border-[#1E5A41]'],
+    REJECTED: ['Rejected', 'bg-[#3A1418] text-crit border-[#6B2A30]'],
+  };
+  const [label, style] = styles[decision];
+  return <span className={`${BADGE} ${style}`}>{label}</span>;
 }
 
 export function Stat({
@@ -102,6 +99,20 @@ export function Stat({
   );
 }
 
-export function formatRatio(value: number | null): string {
-  return value === null ? '—' : value.toFixed(3);
+export function SourceTag({ source }: { source?: string }) {
+  if (!source) return null;
+  const ai = source === 'gemini';
+  return (
+    <span className={`font-mono text-[11px] uppercase tracking-wider ${ai ? 'text-signal' : 'text-muted'}`}>
+      {ai ? 'Gemini' : source === 'playbook' ? 'Playbook' : 'Rules'}
+    </span>
+  );
+}
+
+export function formatRatio(value: number | null | undefined): string {
+  return value === null || value === undefined ? '—' : value.toFixed(3);
+}
+
+export function EmptyState({ children }: { children: ReactNode }) {
+  return <p className="m-0 rounded-xl border border-dashed border-line-strong p-8 text-center text-sm text-muted">{children}</p>;
 }

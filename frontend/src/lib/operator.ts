@@ -6,7 +6,7 @@
 
 export type OperatorRole = 'analyst' | 'responder' | 'manager' | 'researcher';
 
-export type ConsolePage = 'overview' | 'events' | 'workflow' | 'evaluation' | 'runs';
+export type ConsolePage = 'overview' | 'incidents' | 'governance' | 'agents';
 
 export interface OperatorProfile {
   name: string;
@@ -26,39 +26,38 @@ export const ROLES: RoleSpec[] = [
   {
     id: 'analyst',
     label: 'SOC Analyst',
-    blurb: 'Triage live threat events',
-    focus: 'Your queue opens on the command center, highest-severity windows first.',
+    blurb: 'Launch runs, triage detections',
+    focus: 'Start a monitoring run and triage what the agents detect.',
     landing: 'overview',
   },
   {
     id: 'responder',
     label: 'Incident Responder',
-    blurb: 'Contain and verify',
-    focus: 'Containment proposals awaiting backend confirmation are pinned for you.',
-    landing: 'events',
+    blurb: 'Review and approve responses',
+    focus: 'Responses waiting for your approval are at the top of the incident list.',
+    landing: 'incidents',
   },
   {
     id: 'manager',
     label: 'Security Manager',
     blurb: 'Governance and digital trust',
-    focus: 'Evaluation evidence and trust guarantees are your starting view.',
-    landing: 'evaluation',
+    focus: 'The review queue, tamper-evident audit trail and evaluation evidence.',
+    landing: 'governance',
   },
   {
     id: 'researcher',
     label: 'Researcher',
     blurb: 'Agents and evaluation',
-    focus: 'The LangGraph agent workflow and its contracts are front and centre.',
-    landing: 'workflow',
+    focus: 'How the five LangGraph agents route each traffic window.',
+    landing: 'agents',
   },
 ];
 
 export const PAGES: { id: ConsolePage; label: string }[] = [
-  { id: 'overview', label: 'Command Center' },
-  { id: 'events', label: 'Threat Events' },
-  { id: 'workflow', label: 'Agent Workflow' },
-  { id: 'evaluation', label: 'Evaluation' },
-  { id: 'runs', label: 'Run Results' },
+  { id: 'overview', label: 'Overview' },
+  { id: 'incidents', label: 'Incidents' },
+  { id: 'governance', label: 'Governance' },
+  { id: 'agents', label: 'Agents' },
 ];
 
 const STORAGE_KEY = 'aegis.operator.v1';
@@ -84,10 +83,7 @@ export function loadOperator(): OperatorProfile | null {
 export function saveOperator(profile: OperatorProfile): void {
   try {
     if (profile.remember) {
-      window.localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ name: profile.name, role: profile.role })
-      );
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ name: profile.name, role: profile.role }));
     } else {
       window.localStorage.removeItem(STORAGE_KEY);
     }

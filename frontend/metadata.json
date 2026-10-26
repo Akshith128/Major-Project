@@ -1,6 +1,0 @@
-{
-  "name": "Stage C Offline Evaluation Harness",
-  "description": "Strict recorded-detector output replay and provenance validation console for network traffic intrusion evaluation without ground-truth label leakage.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

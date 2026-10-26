@@ -3,19 +3,16 @@
   "configurations": [
     {
       "name": "backend",
-      "runtimeExecutable": "D:\\hi\\4-1\\Major_Project\\.venv\\Scripts\\python.exe",
+      "runtimeExecutable": ".venv\\Scripts\\python.exe",
       "runtimeArgs": [
         "-m",
         "uvicorn",
-        "api.app:app",
+        "aegis.api:app",
         "--host",
         "127.0.0.1",
         "--port",
-        "8000",
-        "--app-dir",
-        "D:\\hi\\4-1\\Major_Project"
+        "8000"
       ],
-      "cwd": "D:\\hi\\4-1\\Major_Project",
       "port": 8000
     },
     {
@@ -23,11 +20,10 @@
       "runtimeExecutable": "npm.cmd",
       "runtimeArgs": [
         "--prefix",
-        "D:\\hi\\4-1\\Major_Project\\frontend",
+        "frontend",
         "run",
         "dev"
       ],
-      "cwd": "D:\\hi\\4-1\\Major_Project\\frontend",
       "port": 3000
     }
   ]
