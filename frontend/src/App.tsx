@@ -191,8 +191,8 @@ export default function App() {
           </div>
         )}
 
-        {page === 'overview' && <Overview run={run} role={operator.role} datasets={datasets} health={health} onStart={startRun} onInspect={inspect} />}
-        {page === 'incidents' && <Incidents run={run} selected={selected} onSelect={setSelected} onReview={review} />}
+        {page === 'overview' && <Overview run={run} role={operator.role} datasets={datasets} health={health} selected={selected} onStart={startRun} onInspect={inspect} />}
+        {page === 'incidents' && <Incidents key={run?.id} run={run} role={operator.role} selected={selected} onSelect={setSelected} onReview={review} />}
         {page === 'governance' && <Governance run={run} onOpen={inspect} />}
         {page === 'agents' && <Agents run={run} />}
       </main>

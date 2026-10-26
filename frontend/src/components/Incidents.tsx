@@ -1,9 +1,19 @@
 import { useState, type ReactNode } from 'react';
 import { Check, X } from 'lucide-react';
 import type { Run, WindowResult } from '../api';
+import type { OperatorRole } from '../lib/operator';
 import { DecisionBadge, EmptyState, Kicker, Panel, SeverityBadge, SourceTag } from './ui';
 
-type Filter = 'all' | 'threats' | 'review';
+type Filter = 'review' | 'threats' | 'reviewed' | 'all';
+
+const isPending = (w: WindowResult) => w.governance.decision === 'PENDING_REVIEW' && !w.review;
+
+/** How the pipeline's verdict compares with the hidden ground truth. */
+function outcomeOf(w: WindowResult): { label: string; good: boolean } {
+  const flagged = !!w.detection?.threat;
+  if (flagged) return w.truth.is_attack ? { label: 'True positive', good: true } : { label: 'False positive', good: false };
+  return w.truth.is_attack ? { label: 'False negative — attack missed', good: false } : { label: 'True negative', good: true };
+}
 
 function Step({ name, source, children }: { name: string; source?: string; children: ReactNode }) {
   return (
@@ -46,8 +56,8 @@ function ReviewBox({ window: w, onReview }: { window: WindowResult; onReview: (d
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-[#6B4F1A] bg-ink-raised p-4">
       <label className="flex flex-col gap-2 text-sm font-semibold">
-        Your decision on this response
-        <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={500} placeholder="Optional note for the audit trail" className="rounded-lg border border-line-strong bg-ink p-3 text-sm font-normal text-fg placeholder:text-muted" />
+        Your approval is required before this response is executed
+        <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={500} placeholder="Why you approve or reject — recorded in the audit trail" className="rounded-lg border border-line-strong bg-ink p-3 text-sm font-normal text-fg placeholder:text-muted" />
       </label>
       <div className="flex flex-wrap gap-2.5">
         <button type="button" disabled={busy} onClick={() => decide('APPROVED')} className="flex h-11 cursor-pointer items-center gap-2 rounded-lg bg-ok px-4 text-sm font-bold text-[#062417] disabled:opacity-50">
@@ -98,6 +108,10 @@ function WindowDetail({ window: w, onReview }: { window: WindowResult; onReview:
                 Score <span className="font-mono text-fg">{w.monitoring.score}</span> vs gate {w.monitoring.threshold} →{' '}
                 {w.monitoring.suspicious ? 'suspicious, sent to detection' : 'clear'}
               </span>
+              <span className="relative block h-1.5 max-w-xs rounded-full bg-panel-2" aria-hidden="true">
+                <span className={`block h-full rounded-full ${w.monitoring.suspicious ? 'bg-warn' : 'bg-signal'}`} style={{ width: `${w.monitoring.score * 100}%` }} />
+                <span className="absolute -top-1 h-3.5 w-0.5 bg-warn" style={{ left: `${w.monitoring.threshold * 100}%` }} />
+              </span>
               {w.monitoring.signals.length > 0 && <span>{w.monitoring.signals.join(' · ')}</span>}
             </Step>
             {w.detection && (
@@ -135,10 +149,13 @@ function WindowDetail({ window: w, onReview }: { window: WindowResult; onReview:
           </ol>
         </div>
 
-        <ReviewBox window={w} onReview={onReview} />
+        <ReviewBox key={w.index} window={w} onReview={onReview} />
 
-        <p className="m-0 border-t border-line pt-3 text-xs text-muted">
-          Ground truth (evaluation only, never shown to agents): {w.truth.dominant_label} · {Math.round(w.truth.attack_share * 100)}% attack flows
+        <p className="m-0 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line pt-3 text-xs text-muted">
+          <span>
+            Ground truth (evaluation only, never shown to agents): {w.truth.dominant_label} · {Math.round(w.truth.attack_share * 100)}% attack flows
+          </span>
+          <span className={`font-mono font-bold uppercase ${outcomeOf(w).good ? 'text-ok' : 'text-crit'}`}>{outcomeOf(w).label}</span>
         </p>
       </div>
     </Panel>
@@ -147,26 +164,35 @@ function WindowDetail({ window: w, onReview }: { window: WindowResult; onReview:
 
 export function Incidents({
   run,
+  role,
   selected,
   onSelect,
   onReview,
 }: {
   run: Run | null;
+  role: OperatorRole;
   selected: number | null;
   onSelect: (index: number) => void;
   onReview: (index: number, decision: 'APPROVED' | 'REJECTED', note: string) => Promise<void>;
 }) {
-  const [filter, setFilter] = useState<Filter>('all');
+  // Responders land on their approval queue; everyone else starts from all windows.
+  const [filter, setFilter] = useState<Filter>(role === 'responder' ? 'review' : 'all');
   if (!run || run.windows.length === 0) return <EmptyState>Run the agents from the Overview to see incidents here.</EmptyState>;
 
-  const rows = run.windows.filter((w) =>
-    filter === 'threats' ? w.detection?.threat : filter === 'review' ? w.governance.decision === 'PENDING_REVIEW' && !w.review : true
-  );
+  const matches: Record<Filter, (w: WindowResult) => boolean> = {
+    review: isPending,
+    threats: (w) => !!w.detection?.threat,
+    reviewed: (w) => !!w.review,
+    all: () => true,
+  };
+  const rows = run.windows.filter(matches[filter]);
+  if (role === 'responder') rows.sort((a, b) => Number(isPending(b)) - Number(isPending(a)));
   const current = run.windows.find((w) => w.index === selected) ?? rows[0] ?? run.windows[0];
   const filters: [Filter, string][] = [
-    ['all', `All (${run.windows.length})`],
-    ['threats', `Threats (${run.windows.filter((w) => w.detection?.threat).length})`],
-    ['review', `Needs review (${run.windows.filter((w) => w.governance.decision === 'PENDING_REVIEW' && !w.review).length})`],
+    ['review', 'Awaiting review'],
+    ['threats', 'Threats'],
+    ['reviewed', 'Reviewed'],
+    ['all', 'All windows'],
   ];
 
   return (
@@ -175,7 +201,7 @@ export function Incidents({
         <div className="flex flex-wrap gap-2" role="group" aria-label="Filter windows">
           {filters.map(([id, label]) => (
             <button key={id} type="button" aria-pressed={filter === id} onClick={() => setFilter(id)} className={`h-10 cursor-pointer rounded-full border px-4 text-sm ${filter === id ? 'border-signal bg-[#122631] text-fg' : 'border-line-strong text-soft hover:text-fg'}`}>
-              {label}
+              {label} <span className="font-mono opacity-80">{run.windows.filter(matches[id]).length}</span>
             </button>
           ))}
         </div>

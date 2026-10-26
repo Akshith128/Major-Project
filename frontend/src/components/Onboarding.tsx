@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { ArrowRight } from 'lucide-react';
-import { ROLES, type OperatorProfile, type OperatorRole } from '../lib/operator';
+import { PAGES, ROLES, roleSpec, type OperatorProfile, type OperatorRole } from '../lib/operator';
 import { ShieldMark } from './ui';
 
 export function Onboarding({
@@ -73,7 +73,9 @@ export function Onboarding({
                   }`}
                 >
                   <span className="block text-[15px] font-semibold">{r.label}</span>
-                  <span className="mt-1 block text-sm text-soft">{r.blurb}</span>
+                  <span className="mt-1 block text-sm text-soft">
+                    {r.blurb} · opens {PAGES.find((p) => p.id === r.landing)?.label}
+                  </span>
                 </button>
               );
             })}
@@ -94,7 +96,7 @@ export function Onboarding({
           type="submit"
           className="flex h-[52px] cursor-pointer items-center justify-center gap-2.5 rounded-lg bg-signal text-base font-bold text-signal-ink hover:brightness-110"
         >
-          Enter command center
+          Enter console as {name.trim() || 'Operator'} · {roleSpec(role).label}
           <ArrowRight className="h-[18px] w-[18px]" aria-hidden="true" />
         </button>
         <p className="m-0 text-center text-sm text-muted">

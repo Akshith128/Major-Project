@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
-import { CheckCircle2, ShieldAlert, XCircle } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { CheckCircle2, ShieldAlert, ShieldCheck, XCircle } from 'lucide-react';
 import { api, type Metrics, type Run } from '../api';
-import { EmptyState, Kicker, Panel, formatRatio } from './ui';
+import { EmptyState, Kicker, Panel, Stat, formatRatio } from './ui';
 
 function MetricCard({ title, note, m }: { title: string; note: string; m: Metrics }) {
   return (
@@ -45,17 +45,27 @@ function MetricCard({ title, note, m }: { title: string; note: string; m: Metric
 }
 
 function AuditTrail({ run }: { run: Run }) {
-  const [check, setCheck] = useState<{ valid: boolean; broken_at: number | null } | null>(null);
+  const [check, setCheck] = useState<{ valid: boolean; records: number; broken_at: number | null; at: Date } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  // Asks the API to recompute every SHA-256 link from the stored file, not from what this page holds.
+  const verify = useCallback(async () => {
+    setChecking(true);
+    setError(null);
+    try {
+      setCheck({ ...(await api.verifyAudit(run.id)), at: new Date() });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Verification failed.');
+    } finally {
+      setChecking(false);
+    }
+  }, [run.id]);
 
   useEffect(() => {
     setCheck(null);
-    setError(null);
-    api
-      .verifyAudit(run.id)
-      .then(setCheck)
-      .catch((err) => setError(err instanceof Error ? err.message : 'Verification failed.'));
-  }, [run.id, run.audit.length]);
+    void verify();
+  }, [verify, run.audit.length]);
 
   return (
     <Panel
@@ -63,13 +73,26 @@ function AuditTrail({ run }: { run: Run }) {
       meta={`${run.audit.length} records · SHA-256 hash chain`}
       bodyClassName="flex flex-col gap-4 p-5"
     >
-      {check && (
-        <p role="status" className={`m-0 flex items-center gap-2 text-sm ${check.valid ? 'text-ok' : 'text-crit'}`}>
-          {check.valid ? <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> : <XCircle className="h-4 w-4" aria-hidden="true" />}
-          {check.valid ? 'Chain verified — no record has been altered, removed or reordered.' : `Chain broken at record ${check.broken_at}.`}
-        </p>
-      )}
-      {error && <p className="m-0 text-sm text-warn">{error}</p>}
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={() => void verify()}
+          disabled={checking}
+          className="flex h-11 cursor-pointer items-center gap-2 rounded-lg bg-signal px-4 text-sm font-bold text-signal-ink disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <ShieldCheck className="h-4 w-4" aria-hidden="true" /> {checking ? 'Verifying…' : 'Verify chain'}
+        </button>
+        {check && (
+          <p role="status" className={`m-0 flex items-center gap-2 text-sm ${check.valid ? 'text-ok' : 'text-crit'}`}>
+            {check.valid ? <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> : <XCircle className="h-4 w-4" aria-hidden="true" />}
+            {check.valid
+              ? `All ${check.records} records intact — none altered, removed or reordered.`
+              : `Chain broken at record #${check.broken_at} — the stored trail was edited after it was written.`}
+            <span className="font-mono text-xs text-muted">checked {check.at.toLocaleTimeString()}</span>
+          </p>
+        )}
+      </div>
+      {error && <p role="alert" className="m-0 text-sm text-warn">{error}</p>}
       <div className="max-h-[480px] overflow-auto rounded-lg border border-line">
         <table className="w-full min-w-[640px] border-collapse text-sm">
           <thead className="sticky top-0 bg-panel">
@@ -78,12 +101,13 @@ function AuditTrail({ run }: { run: Run }) {
               <th className="px-2 py-2.5 font-medium">Time</th>
               <th className="px-2 py-2.5 font-medium">Actor</th>
               <th className="px-2 py-2.5 font-medium">Action</th>
+              <th className="px-2 py-2.5 font-medium">Prev</th>
               <th className="px-4 py-2.5 font-medium">Hash</th>
             </tr>
           </thead>
           <tbody>
             {[...run.audit].reverse().map((r) => (
-              <tr key={r.seq} className="border-t border-line align-top">
+              <tr key={r.seq} className={`border-t border-line align-top ${check && !check.valid && check.broken_at === r.seq ? 'bg-[#3A1418] text-crit' : ''}`}>
                 <td className="px-4 py-2.5 font-mono text-muted">{r.seq}</td>
                 <td className="px-2 py-2.5 font-mono text-xs text-soft">{new Date(r.at).toLocaleTimeString()}</td>
                 <td className={`px-2 py-2.5 text-xs ${r.actor.startsWith('analyst:') ? 'text-signal' : 'text-soft'}`}>{r.actor}</td>
@@ -91,7 +115,8 @@ function AuditTrail({ run }: { run: Run }) {
                   <span className="font-mono text-xs">{r.action}</span>
                   {'window' in r.detail && <span className="ml-2 text-xs text-muted">W{String(r.detail.window)}{r.detail.decision ? ` · ${String(r.detail.decision)}` : ''}</span>}
                 </td>
-                <td className="px-4 py-2.5 font-mono text-xs text-muted" title={r.hash}>{r.hash.slice(0, 12)}…</td>
+                <td className="px-2 py-2.5 font-mono text-xs text-muted" title={r.prev_hash}>{r.prev_hash.slice(0, 10)}…</td>
+                <td className="px-4 py-2.5 font-mono text-xs text-soft" title={r.hash}>{r.hash.slice(0, 12)}…</td>
               </tr>
             ))}
           </tbody>
@@ -106,8 +131,18 @@ export function Governance({ run, onOpen }: { run: Run | null; onOpen: (index: n
   const queue = run.windows.filter((w) => w.governance.decision === 'PENDING_REVIEW' && !w.review);
   const reviewed = run.windows.filter((w) => w.review);
 
+  const count = (d: string) => run.windows.filter((w) => w.governance.decision === d).length;
+  const approved = reviewed.filter((w) => w.review?.decision === 'APPROVED').length;
+
   return (
     <div className="flex flex-col gap-5">
+      <section aria-label="Governance decisions" className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+        <Stat label="Pending review" value={queue.length} note="Needs an analyst decision" tone="text-warn" />
+        <Stat label="Auto-approved" value={count('AUTO_APPROVED')} note={`Within policy ${run.windows[0]?.governance.policy ?? 'AEGIS-GOV-1'}`} tone="text-ok" />
+        <Stat label="Analyst reviewed" value={reviewed.length} note={`${approved} approved · ${reviewed.length - approved} rejected`} tone="text-signal" />
+        <Stat label="No action" value={count('NO_ACTION')} note="Clean or cleared windows" tone="text-soft" />
+      </section>
+
       <section className="grid grid-cols-1 gap-4 md:grid-cols-3" aria-label="Digital trust guarantees">
         {[
           ['Human in the loop', `High-severity, low-confidence or rule-based responses wait for an analyst. ${queue.length} waiting, ${reviewed.length} reviewed.`],
