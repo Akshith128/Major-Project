@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Play } from 'lucide-react';
-import { datasetLabel, type Dataset, type Health, type Run, type RunConfig, type RunMode } from '../api';
-import type { OperatorRole } from '../lib/operator';
+import { AlertTriangle, Play } from 'lucide-react';
+import { datasetLabel, type Account, type Dataset, type Health, type Run, type RunConfig, type RunMode } from '../api';
+import { can } from '../lib/operator';
 import { DecisionBadge, EmptyState, Panel, SeverityBadge, Stat } from './ui';
 
 const inputClass = 'h-11 w-full rounded-lg border border-line-strong bg-ink px-3 text-sm text-fg';
@@ -26,11 +26,13 @@ function NewRunForm({
   datasets,
   health,
   busy,
+  blocked,
   onStart,
 }: {
   datasets: Dataset[];
   health: Health | null;
   busy: boolean;
+  blocked: string | null;
   onStart: (config: RunConfig) => Promise<void>;
 }) {
   const [config, setConfig] = useState<RunConfig>({
@@ -49,8 +51,10 @@ function NewRunForm({
   };
 
   useEffect(() => {
-    if (!config.dataset_id && datasets.length) set('dataset_id', datasets[0].dataset_id);
+    const first = datasets.find((d) => !d.excluded_by_default) ?? datasets[0];
+    if (!config.dataset_id && first) set('dataset_id', first.dataset_id);
   }, [datasets, config.dataset_id]);
+  const chosen = datasets.find((d) => d.dataset_id === config.dataset_id);
 
   const gemini = !!health?.gemini.configured;
   useEffect(() => {
@@ -87,7 +91,8 @@ function NewRunForm({
             {datasets.length === 0 && <option value="">No datasets found</option>}
             {datasets.map((d) => (
               <option key={d.dataset_id} value={d.dataset_id}>
-                {datasetLabel(d.dataset_id)} · {d.rows.toLocaleString()} flows
+                {d.excluded_by_default ? '⚠ ' : ''}
+                {datasetLabel(d.dataset_id)} · {d.rows.toLocaleString()} flows · {(d.attack_share * 100).toFixed(1)}% attack
               </option>
             ))}
           </select>
@@ -130,7 +135,7 @@ function NewRunForm({
         </fieldset>
         <button
           type="submit"
-          disabled={busy || submitting || datasets.length === 0}
+          disabled={busy || submitting || datasets.length === 0 || !!blocked}
           className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-lg bg-signal px-5 text-sm font-bold text-signal-ink disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Play className="h-4 w-4" aria-hidden="true" /> {busy ? 'Running…' : submitting ? 'Starting…' : 'Run agents'}
@@ -142,8 +147,17 @@ function NewRunForm({
           </label>
         )}
       </form>
+      {chosen?.caution && (
+        <p className={`m-0 mt-4 flex items-start gap-2 text-sm ${chosen.excluded_by_default ? 'text-warn' : 'text-soft'}`}>
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-none text-warn" aria-hidden="true" />
+          <span>
+            <strong className="font-semibold text-fg">Dataset caveat:</strong> {chosen.caution}
+          </span>
+        </p>
+      )}
       <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm">
         <span className="text-soft">{plan}</span>
+        {blocked && <span className="text-warn">{blocked}</span>}
         {error && (
           <span role="alert" className="text-warn">
             {error}
@@ -198,7 +212,8 @@ function ScoreChart({ run, selected, onInspect }: { run: Run; selected: number |
 
 export function Overview({
   run,
-  role,
+  account,
+  paused,
   datasets,
   health,
   selected,
@@ -206,14 +221,21 @@ export function Overview({
   onInspect,
 }: {
   run: Run | null;
-  role: OperatorRole;
+  account: Account;
+  paused: boolean;
   datasets: Dataset[];
   health: Health | null;
   selected: number | null;
   onStart: (config: RunConfig) => Promise<void>;
   onInspect: (index: number) => void;
 }) {
+  const role = account.role;
   const running = run?.status === 'RUNNING';
+  const blocked = paused
+    ? 'AEGIS is paused; a security manager must resume it first.'
+    : can(account, 'run')
+      ? null
+      : `${account.role_label}s can view runs but not start them.`;
   const threats = run?.windows.filter((w) => w.detection?.threat) ?? [];
   const pending = threats.filter((w) => w.governance.decision === 'PENDING_REVIEW' && !w.review);
   const focus = role === 'responder' ? pending : threats;
@@ -221,7 +243,7 @@ export function Overview({
 
   return (
     <div className="flex flex-col gap-6">
-      <NewRunForm datasets={datasets} health={health} busy={running} onStart={onStart} />
+      <NewRunForm datasets={datasets} health={health} busy={running} blocked={blocked} onStart={onStart} />
 
       {!run ? (
         <EmptyState>No runs yet. Pick a dataset and run the agents — each window flows through monitoring, detection, risk, response and governance.</EmptyState>
@@ -240,7 +262,8 @@ export function Overview({
           )}
           {run.error && (
             <p role="alert" className="m-0 rounded-xl border border-[#6B2A30] bg-[#3A1418] p-4 text-sm text-crit">
-              Run failed: {run.error}
+              Run {run.status === 'STOPPED' ? 'stopped' : 'failed'}: {run.error}
+              {run.error.includes('restart') && ' Start the run again from the form above.'}
             </p>
           )}
 

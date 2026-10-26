@@ -1,23 +1,36 @@
-import { useState, type FormEvent } from 'react';
-import { ArrowRight } from 'lucide-react';
-import { PAGES, ROLES, roleSpec, type OperatorProfile, type OperatorRole } from '../lib/operator';
+import { useEffect, useState, type FormEvent } from 'react';
+import { ArrowRight, KeyRound } from 'lucide-react';
+import { api, type Health, type Session } from '../api';
+import { PAGES, ROLES } from '../lib/operator';
 import { ShieldMark } from './ui';
 
-export function Onboarding({
-  initial,
-  onEnter,
-}: {
-  initial: OperatorProfile | null;
-  onEnter: (profile: OperatorProfile) => void;
-}) {
-  const [name, setName] = useState(initial?.name ?? '');
-  const [role, setRole] = useState<OperatorRole>(initial?.role ?? 'analyst');
-  const [remember, setRemember] = useState(initial?.remember ?? true);
+export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, remember: boolean) => void }) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [remember, setRemember] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [health, setHealth] = useState<Health | null>(null);
 
-  const submit = (e: FormEvent) => {
+  useEffect(() => {
+    api.health().then(setHealth).catch((err) => setError(err instanceof Error ? err.message : 'API unavailable'));
+  }, []);
+
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
-    onEnter({ name: name.trim(), role, remember });
+    setBusy(true);
+    setError(null);
+    try {
+      onSignedIn(await api.login(username.trim(), password), remember);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Sign-in failed.');
+      setPassword('');
+    } finally {
+      setBusy(false);
+    }
   };
+
+  const noAccounts = health && !health.accounts;
 
   return (
     <div className="aegis-grid flex min-h-screen flex-col items-center justify-center gap-8 px-4 py-12">
@@ -35,73 +48,70 @@ export function Onboarding({
         <p className="m-0 text-lg text-soft">Enhancing Cybersecurity Governance and Digital Trust</p>
       </div>
 
-      <form
-        onSubmit={submit}
-        className="flex w-full max-w-[560px] flex-col gap-5 rounded-2xl border border-line-strong bg-panel p-7"
-      >
-        <div className="flex flex-col gap-2">
-          <label htmlFor="op-name" className="font-mono text-xs uppercase tracking-[0.12em] text-muted">
-            Operator name
-          </label>
-          <input
-            id="op-name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Akshith"
-            autoComplete="name"
-            autoFocus
-            className="h-12 rounded-lg border border-line-strong bg-ink px-3.5 text-base text-fg placeholder:text-muted"
-          />
-        </div>
-
-        <fieldset className="m-0 flex flex-col gap-2.5 border-0 p-0">
-          <legend className="mb-2.5 p-0 font-mono text-xs uppercase tracking-[0.12em] text-muted">
-            Your role — the console adapts to it
-          </legend>
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-            {ROLES.map((r) => {
-              const on = r.id === role;
-              return (
-                <button
-                  key={r.id}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => setRole(r.id)}
-                  className={`min-h-16 cursor-pointer rounded-lg border px-3.5 py-3 text-left transition-colors ${
-                    on ? 'border-signal bg-[#122631]' : 'border-line-strong bg-ink hover:border-muted'
-                  }`}
-                >
-                  <span className="block text-[15px] font-semibold">{r.label}</span>
-                  <span className="mt-1 block text-sm text-soft">
-                    {r.blurb} · opens {PAGES.find((p) => p.id === r.landing)?.label}
-                  </span>
-                </button>
-              );
-            })}
+      <form onSubmit={submit} className="flex w-full max-w-[560px] flex-col gap-5 rounded-2xl border border-line-strong bg-panel p-7">
+        {noAccounts && (
+          <div role="status" className="flex flex-col gap-2 rounded-lg border border-[#6B4F1A] bg-[#2A1F0A] p-4 text-sm text-warn">
+            <span className="flex items-center gap-2 font-semibold">
+              <KeyRound className="h-4 w-4" aria-hidden="true" /> No operator accounts yet
+            </span>
+            <span className="text-soft">Create one on the server, then sign in:</span>
+            <code className="rounded bg-ink px-2 py-1.5 font-mono text-xs text-fg">python -m aegis.users add yourname --role analyst</code>
           </div>
-        </fieldset>
+        )}
+        <label className="flex flex-col gap-2 font-mono text-xs uppercase tracking-[0.12em] text-muted">
+          Username
+          <input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoComplete="username"
+            autoFocus
+            required
+            className="h-12 rounded-lg border border-line-strong bg-ink px-3.5 font-sans text-base normal-case tracking-normal text-fg"
+          />
+        </label>
+        <label className="flex flex-col gap-2 font-mono text-xs uppercase tracking-[0.12em] text-muted">
+          Password
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            required
+            className="h-12 rounded-lg border border-line-strong bg-ink px-3.5 font-sans text-base normal-case tracking-normal text-fg"
+          />
+        </label>
 
         <label className="flex cursor-pointer items-center gap-2.5 text-sm text-soft">
-          <input
-            type="checkbox"
-            checked={remember}
-            onChange={(e) => setRemember(e.target.checked)}
-            className="h-4 w-4 accent-[#38D6F5]"
-          />
-          Remember me on this device
+          <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="h-4 w-4 accent-[#38D6F5]" />
+          Keep me signed in on this device
         </label>
+
+        {error && (
+          <p role="alert" className="m-0 text-sm text-warn">
+            {error}
+          </p>
+        )}
 
         <button
           type="submit"
-          className="flex h-[52px] cursor-pointer items-center justify-center gap-2.5 rounded-lg bg-signal text-base font-bold text-signal-ink hover:brightness-110"
+          disabled={busy || !username.trim() || !password}
+          className="flex h-[52px] cursor-pointer items-center justify-center gap-2.5 rounded-lg bg-signal text-base font-bold text-signal-ink hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Enter console as {name.trim() || 'Operator'} · {roleSpec(role).label}
+          {busy ? 'Signing in…' : 'Sign in'}
           <ArrowRight className="h-[18px] w-[18px]" aria-hidden="true" />
         </button>
-        <p className="m-0 text-center text-sm text-muted">
-          Your name and role decide what the console shows you first.
-        </p>
+
+        <div className="flex flex-col gap-2 border-t border-line pt-4">
+          <span className="font-mono text-xs uppercase tracking-[0.12em] text-muted">Your account's role sets where you land and what you may do</span>
+          <ul className="m-0 grid list-none grid-cols-1 gap-1.5 p-0 text-sm text-soft sm:grid-cols-2">
+            {ROLES.map((r) => (
+              <li key={r.id}>
+                <span className="font-semibold text-fg">{r.label}</span> · {r.blurb} · opens {PAGES.find((p) => p.id === r.landing)?.label}
+              </li>
+            ))}
+          </ul>
+        </div>
       </form>
     </div>
   );

@@ -6,7 +6,12 @@ Agents only ever see `window["features"]`; ground-truth labels never reach
 this module.
 """
 
+import hashlib
 import json
+import time
+from typing import Literal
+
+from pydantic import BaseModel, Field, ValidationError
 
 from . import config
 from .llm import LLMUnavailable
@@ -79,10 +84,50 @@ def _features_json(state) -> str:
     return json.dumps(state["window"]["features"], indent=2)
 
 
+def _sha256(text: str) -> str:
+    return hashlib.sha256(text.encode()).hexdigest()
+
+
+def _ask(llm, template: str, prompt: str, state, schema: type[BaseModel]):
+    """Ask the LLM and validate its reply against `schema`.
+
+    Returns (validated reply or None, provenance). Provenance records what is
+    needed to reproduce the decision: template id, prompt and input hashes, the
+    model version actually served, latency, tokens and whether the reply matched
+    the schema. A reply that fails validation is treated like an outage, so the
+    agent falls back to its rule-based path (which governance always escalates).
+    """
+    provenance = {
+        "prompt_template": template,
+        "prompt_sha256": _sha256(prompt),
+        "input_sha256": _sha256(json.dumps(state["window"]["features"], sort_keys=True)),
+        "model": getattr(llm, "model", None),
+    }
+    llm.last_meta = {}  # never let a previous call's metadata leak into this record
+    started = time.perf_counter()
+    try:
+        raw = llm.ask_json(prompt)
+        reply = schema.model_validate(raw)
+        provenance["schema_valid"] = True
+        return reply, provenance
+    except ValidationError as error:
+        provenance["schema_valid"] = False
+        provenance["error"] = f"Reply failed schema validation ({error.error_count()} error(s))."
+        return None, provenance
+    except LLMUnavailable as error:
+        provenance["error"] = str(error)
+        return None, provenance
+    finally:
+        provenance.update(getattr(llm, "last_meta", None) or {})
+        provenance.setdefault("latency_ms", round((time.perf_counter() - started) * 1000))
+
+
 # --- 1. Monitoring (deterministic triage) -----------------------------------
 
 def monitoring_score(f: dict) -> float:
     """Homogeneity score in [0, 1]: attack traffic repeats one flow pattern."""
+    if "unique_tcp_window_ratio" not in f:  # TCP-window ablation: reweight the other two terms
+        return round((0.35 * f["dominant_signature_share"] + 0.20 * f["tcp_share"]) / 0.55, 3)
     low_diversity = 1 - min(f["unique_tcp_window_ratio"], 0.2) / 0.2
     return round(0.45 * low_diversity + 0.35 * f["dominant_signature_share"] + 0.20 * f["tcp_share"], 3)
 
@@ -91,7 +136,7 @@ def monitoring_agent(state) -> dict:
     f = state["window"]["features"]
     score = monitoring_score(f)
     signals = []
-    if f["unique_tcp_window_ratio"] <= 0.05:
+    if f.get("unique_tcp_window_ratio", 1) <= 0.05:
         signals.append("Very low TCP window diversity across flows")
     if f["dominant_signature_share"] >= 0.5:
         signals.append(f"{f['dominant_signature_share']:.0%} of flows share one signature")
@@ -130,6 +175,18 @@ def _rules_detection(state, note: str) -> dict:
     }
 
 
+class DetectionReply(BaseModel):
+    threat: bool
+    attack_type: Literal[tuple(ATTACK_TYPES)] | None = None
+    confidence: int = Field(ge=0, le=100)
+    reasoning: str = Field(min_length=1, max_length=1200)
+
+
+class ResponseReply(BaseModel):
+    actions: list[str] = Field(min_length=1, max_length=4)
+    rationale: str = Field(default="", max_length=600)
+
+
 def make_detection_agent(llm):
     def detection_agent(state) -> dict:
         prompt = f"""You are the detection agent in an autonomous network defence system.
@@ -146,19 +203,19 @@ Reply with JSON only:
   "attack_type": one of {ATTACK_TYPES} or null when no threat,
   "confidence": integer 0-100,
   "reasoning": "one or two sentences citing the features"}}"""
-        try:
-            out = llm.ask_json(prompt)
-            threat = bool(out.get("threat"))
-            attack_type = out.get("attack_type")
+        reply, provenance = _ask(llm, "detection-v1", prompt, state, DetectionReply)
+        if reply is None:
+            detection = _rules_detection(state, provenance["error"])
+        else:
             detection = {
-                "threat": threat,
-                "attack_type": (attack_type if attack_type in ATTACK_TYPES else "Unknown") if threat else None,
-                "confidence": max(0, min(100, int(out.get("confidence", 0)))),
-                "reasoning": str(out.get("reasoning", "")).strip(),
+                "threat": reply.threat,
+                "attack_type": (reply.attack_type or "Unknown") if reply.threat else None,
+                "confidence": reply.confidence,
+                "reasoning": reply.reasoning.strip(),
                 "source": llm.provider,
             }
-        except (LLMUnavailable, ValueError, TypeError) as error:
-            detection = _rules_detection(state, str(error))
+        if llm.provider != "rules":
+            detection["provenance"] = provenance
         return {"detection": detection, "trace": ["detection"]}
 
     return detection_agent
@@ -215,23 +272,19 @@ Standard playbook for {attack_type}: {playbook}
 Recommend 2-4 concrete containment actions, most urgent first, adapted to these
 features. Reply with JSON only:
 {{"actions": ["..."], "rationale": "one sentence"}}"""
-        try:
-            out = llm.ask_json(prompt)
-            actions = [str(a).strip() for a in out.get("actions", []) if str(a).strip()][:4]
-            if not actions:
-                raise LLMUnavailable("Gemini returned no actions.")
-            response = {
-                "actions": actions,
-                "rationale": str(out.get("rationale", "")).strip(),
-                "source": llm.provider,
-            }
-        except (LLMUnavailable, ValueError, TypeError) as error:
+        reply, provenance = _ask(llm, "response-v1", prompt, state, ResponseReply)
+        actions = [a.strip()[:300] for a in reply.actions if a.strip()] if reply else []
+        if actions:
+            response = {"actions": actions, "rationale": reply.rationale.strip(), "source": llm.provider}
+        else:
             response = {
                 "actions": playbook,
                 "rationale": f"Standard {attack_type} playbook.",
                 "source": "playbook",
-                "note": str(error),
+                "note": provenance.get("error", "Reply contained no actions."),
             }
+        if llm.provider != "rules":
+            response["provenance"] = provenance
         response["execution"] = "RECOMMENDED_NOT_EXECUTED"
         return {"response": response, "trace": ["response"]}
 

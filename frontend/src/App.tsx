@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, LogOut } from 'lucide-react';
-import { api, datasetLabel, type Dataset, type Health, type Run, type RunConfig, type RunListItem } from './api';
+import { AlertTriangle, LogOut, OctagonPause } from 'lucide-react';
 import {
-  PAGES,
-  clearOperator,
-  greetingFor,
-  initialsOf,
-  loadOperator,
-  roleSpec,
-  saveOperator,
-  type ConsolePage,
-  type OperatorProfile,
-} from './lib/operator';
+  api,
+  datasetLabel,
+  onSessionExpired,
+  type Account,
+  type ControlState,
+  type Dataset,
+  type Health,
+  type Run,
+  type RunConfig,
+  type RunListItem,
+  type Session,
+} from './api';
+import { PAGES, can, clearSession, greetingFor, initialsOf, readSession, roleSpec, saveSession, type ConsolePage } from './lib/operator';
 import { Onboarding } from './components/Onboarding';
 import { Overview } from './components/Overview';
 import { Incidents } from './components/Incidents';
@@ -23,9 +25,9 @@ const PROJECT_TITLE = 'Agentic AI for Autonomous Threat Detection and Response';
 const PROJECT_SUBTITLE = 'Enhancing Cybersecurity Governance and Digital Trust';
 
 export default function App() {
-  const [operator, setOperator] = useState<OperatorProfile | null>(() => loadOperator());
-  const [signedIn, setSignedIn] = useState(() => operator !== null);
-  const [page, setPage] = useState<ConsolePage>(() => (operator ? roleSpec(operator.role).landing : 'overview'));
+  const [account, setAccount] = useState<Account | null>(() => readSession()?.user ?? null);
+  const [page, setPage] = useState<ConsolePage>(() => (account ? roleSpec(account.role).landing : 'overview'));
+  const [control, setControl] = useState<ControlState | null>(null);
 
   const [health, setHealth] = useState<Health | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -37,10 +39,11 @@ export default function App() {
 
   const connect = useCallback(async () => {
     try {
-      const [h, d, r] = await Promise.all([api.health(), api.datasets(), api.runs()]);
+      const [h, d, r, c] = await Promise.all([api.health(), api.datasets(), api.runs(), api.control()]);
       setHealth(h);
       setDatasets(d);
       setRuns(r);
+      setControl(c);
       setRunId((current) => current ?? r[0]?.id ?? null);
       setApiError(null);
     } catch (err) {
@@ -48,9 +51,19 @@ export default function App() {
     }
   }, []);
 
+  const signOut = useCallback(() => {
+    clearSession();
+    setAccount(null);
+    setRunId(null);
+    setRun(null);
+    setRuns([]);
+  }, []);
+
+  useEffect(() => onSessionExpired(signOut), [signOut]);
+
   useEffect(() => {
-    if (signedIn) void connect();
-  }, [signedIn, connect]);
+    if (account) void connect();
+  }, [account, connect]);
 
   // Load the selected run; poll while the agents are still working on it.
   useEffect(() => {
@@ -63,7 +76,10 @@ export default function App() {
         if (cancelled) return;
         setRun(next);
         if (next.status === 'RUNNING') timer = window.setTimeout(load, 1200);
-        else setRuns(await api.runs());
+        else {
+          setRuns(await api.runs());
+          setControl(await api.control());
+        }
       } catch (err) {
         if (!cancelled) setApiError(err instanceof Error ? err.message : 'Could not load run');
       }
@@ -75,22 +91,21 @@ export default function App() {
     };
   }, [runId]);
 
-  const enter = (profile: OperatorProfile) => {
-    saveOperator(profile);
-    setOperator(profile);
-    setPage(roleSpec(profile.role).landing);
-    setSignedIn(true);
+  const enter = (session: Session, remember: boolean) => {
+    saveSession(session, remember);
+    setAccount(session.user);
+    setPage(roleSpec(session.user.role).landing);
   };
 
-  const switchOperator = () => {
-    if (!operator?.remember) clearOperator();
-    setSignedIn(false);
-  };
+  const operatorName = account?.name || 'Operator';
 
-  const operatorName = operator?.name || 'Operator';
+  const setPaused = async (paused: boolean, reason: string) => {
+    setControl(await api.setPaused(paused, reason));
+    if (runId) setRun(await api.run(runId));
+  };
 
   const startRun = async (config: RunConfig) => {
-    const started = await api.startRun({ ...config, operator: operatorName });
+    const started = await api.startRun(config);
     setSelected(null);
     setRun(null);
     setRunId(started.id);
@@ -99,7 +114,7 @@ export default function App() {
 
   const review = async (index: number, decision: 'APPROVED' | 'REJECTED', note: string) => {
     if (!run) return;
-    await api.review(run.id, index, decision, operatorName, note);
+    await api.review(run.id, index, decision, note);
     setRun(await api.run(run.id));
   };
 
@@ -108,9 +123,9 @@ export default function App() {
     setPage('incidents');
   };
 
-  if (!signedIn || !operator) return <Onboarding initial={operator} onEnter={enter} />;
+  if (!account) return <Onboarding onSignedIn={enter} />;
 
-  const role = roleSpec(operator.role);
+  const role = roleSpec(account.role);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -146,12 +161,12 @@ export default function App() {
           <div className="ml-auto flex items-center gap-3">
             <span className={`hidden items-center gap-2 font-mono text-xs sm:flex ${apiError ? 'text-warn' : 'text-ok'}`}>
               <span className={`h-2 w-2 rounded-full ${apiError ? 'bg-warn' : 'bg-ok'}`} aria-hidden="true" />
-              {apiError ? 'API OFFLINE' : health?.gemini.configured ? 'GEMINI ONLINE' : 'RULES MODE'}
+              {apiError ? 'API OFFLINE' : control?.paused ? 'PAUSED' : health?.gemini.configured ? 'GEMINI ONLINE' : 'RULES MODE'}
             </span>
-            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-signal bg-panel-2 text-sm font-bold" title={`${operatorName} · ${role.label}`}>
-              {initialsOf(operator.name)}
+            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-signal bg-panel-2 text-sm font-bold" title={`${operatorName} (${account.username}) · ${role.label}`}>
+              {initialsOf(account.name)}
             </div>
-            <button type="button" onClick={switchOperator} aria-label="Switch operator" title="Switch operator" className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-lg border border-line-strong text-soft hover:text-fg">
+            <button type="button" onClick={signOut} aria-label="Sign out" title="Sign out" className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-lg border border-line-strong text-soft hover:text-fg">
               <LogOut className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
@@ -181,6 +196,23 @@ export default function App() {
           )}
         </section>
 
+        {control?.paused && (
+          <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl border border-[#6B2A30] bg-[#3A1418] p-4 text-sm text-crit">
+            <OctagonPause className="h-5 w-5 flex-none" aria-hidden="true" />
+            <span className="min-w-0 flex-1">
+              <strong>AEGIS is paused.</strong> No run can start and running work stopped after its current window
+              {control.by && ` · by ${control.by.replace('user:', '')}`}
+              {control.at && ` at ${new Date(control.at).toLocaleString()}`}
+              {control.reason && ` · “${control.reason}”`}
+            </span>
+            {can(account, 'control') && (
+              <button type="button" onClick={() => void setPaused(false, '')} className="h-10 cursor-pointer rounded-lg border border-crit px-4 font-semibold hover:bg-crit/10">
+                Resume
+              </button>
+            )}
+          </div>
+        )}
+
         {apiError && (
           <div role="alert" className="flex flex-wrap items-start gap-3 rounded-xl border border-[#6B4F1A] bg-[#3A2A0C] p-4 text-sm text-warn">
             <AlertTriangle className="mt-0.5 h-4 w-4 flex-none" aria-hidden="true" />
@@ -191,9 +223,15 @@ export default function App() {
           </div>
         )}
 
-        {page === 'overview' && <Overview run={run} role={operator.role} datasets={datasets} health={health} selected={selected} onStart={startRun} onInspect={inspect} />}
-        {page === 'incidents' && <Incidents key={run?.id} run={run} role={operator.role} selected={selected} onSelect={setSelected} onReview={review} />}
-        {page === 'governance' && <Governance run={run} onOpen={inspect} />}
+        {page === 'overview' && (
+          <Overview run={run} account={account} paused={!!control?.paused} datasets={datasets} health={health} selected={selected} onStart={startRun} onInspect={inspect} />
+        )}
+        {page === 'incidents' && (
+          <Incidents key={run?.id} run={run} role={account.role} canReview={can(account, 'review')} selected={selected} onSelect={setSelected} onReview={review} />
+        )}
+        {page === 'governance' && (
+          <Governance run={run} control={control} canControl={can(account, 'control')} onPause={setPaused} onOpen={inspect} />
+        )}
         {page === 'agents' && <Agents run={run} />}
       </main>
 

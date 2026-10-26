@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Check, X } from 'lucide-react';
-import type { Run, WindowResult } from '../api';
+import type { Provenance, Run, WindowResult } from '../api';
 import type { OperatorRole } from '../lib/operator';
 import { DecisionBadge, EmptyState, Kicker, Panel, SeverityBadge, SourceTag } from './ui';
 
@@ -27,7 +27,29 @@ function Step({ name, source, children }: { name: string; source?: string; child
   );
 }
 
-function ReviewBox({ window: w, onReview }: { window: WindowResult; onReview: (decision: 'APPROVED' | 'REJECTED', note: string) => Promise<void> }) {
+/** One line that lets an examiner reproduce an LLM decision. */
+function ProvenanceLine({ p }: { p?: Provenance }) {
+  if (!p) return null;
+  const tokens = p.tokens_in != null ? `${p.tokens_in}+${p.tokens_out ?? 0} tokens` : null;
+  return (
+    <span className="font-mono text-[11px] text-muted" title={`prompt ${p.prompt_sha256}\ninput ${p.input_sha256}`}>
+      {[p.model_version ?? p.model, p.temperature != null && `temp ${p.temperature}`, p.latency_ms != null && `${p.latency_ms} ms`, tokens, `${p.prompt_template} · prompt ${p.prompt_sha256.slice(0, 10)}…`]
+        .filter(Boolean)
+        .join(' · ')}
+      {p.schema_valid === false && <span className="text-warn"> · reply failed schema check</span>}
+    </span>
+  );
+}
+
+function ReviewBox({
+  window: w,
+  canReview,
+  onReview,
+}: {
+  window: WindowResult;
+  canReview: boolean;
+  onReview: (decision: 'APPROVED' | 'REJECTED', note: string) => Promise<void>;
+}) {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,12 +69,19 @@ function ReviewBox({ window: w, onReview }: { window: WindowResult; onReview: (d
   if (w.review) {
     return (
       <p className={`m-0 text-sm ${w.review.decision === 'APPROVED' ? 'text-ok' : 'text-crit'}`}>
-        {w.review.decision === 'APPROVED' ? 'Approved' : 'Rejected'} by {w.review.operator} · {new Date(w.review.at).toLocaleString()}
+        {w.review.decision === 'APPROVED' ? 'Approved' : 'Rejected'} by {w.review.operator}
+        {w.review.username && ` (${w.review.username})`} · {new Date(w.review.at).toLocaleString()}
         {w.review.note && <span className="block text-soft">“{w.review.note}”</span>}
       </p>
     );
   }
   if (w.governance.decision !== 'PENDING_REVIEW') return null;
+  if (!canReview)
+    return (
+      <p className="m-0 rounded-lg border border-[#6B4F1A] bg-ink-raised p-4 text-sm text-warn">
+        Awaiting approval by an analyst, responder or security manager. Your role can view it but not decide.
+      </p>
+    );
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-[#6B4F1A] bg-ink-raised p-4">
       <label className="flex flex-col gap-2 text-sm font-semibold">
@@ -72,7 +101,15 @@ function ReviewBox({ window: w, onReview }: { window: WindowResult; onReview: (d
   );
 }
 
-function WindowDetail({ window: w, onReview }: { window: WindowResult; onReview: (decision: 'APPROVED' | 'REJECTED', note: string) => Promise<void> }) {
+function WindowDetail({
+  window: w,
+  canReview,
+  onReview,
+}: {
+  window: WindowResult;
+  canReview: boolean;
+  onReview: (decision: 'APPROVED' | 'REJECTED', note: string) => Promise<void>;
+}) {
   const f = w.features;
   const shown: [string, string][] = [
     ['TCP share', `${Math.round(f.tcp_share * 100)}%`],
@@ -119,8 +156,16 @@ function WindowDetail({ window: w, onReview }: { window: WindowResult; onReview:
                 <span>
                   {w.detection.threat ? `Threat: ${w.detection.attack_type}` : 'No threat'} · confidence {w.detection.confidence}
                 </span>
-                <span>{w.detection.reasoning}</span>
+                <span>
+                  {w.detection.source === 'gemini' && (
+                    <span className="mr-2 rounded border border-line-strong px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted">
+                      Model rationale · not verified
+                    </span>
+                  )}
+                  {w.detection.reasoning}
+                </span>
                 {w.detection.note && <span className="text-xs text-muted">Fallback reason: {w.detection.note}</span>}
+                <ProvenanceLine p={w.detection.provenance} />
               </Step>
             )}
             {w.risk && (
@@ -140,6 +185,7 @@ function WindowDetail({ window: w, onReview }: { window: WindowResult; onReview:
                 </ol>
                 {w.response.rationale && <span>{w.response.rationale}</span>}
                 <span className="font-mono text-xs text-muted">Recommended — not executed automatically</span>
+                <ProvenanceLine p={w.response.provenance} />
               </Step>
             )}
             <Step name={`${w.trace.length} · Governance agent`} source="rules">
@@ -149,13 +195,19 @@ function WindowDetail({ window: w, onReview }: { window: WindowResult; onReview:
           </ol>
         </div>
 
-        <ReviewBox key={w.index} window={w} onReview={onReview} />
+        <ReviewBox key={w.index} window={w} canReview={canReview} onReview={onReview} />
 
         <p className="m-0 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line pt-3 text-xs text-muted">
           <span>
             Ground truth (evaluation only, never shown to agents): {w.truth.dominant_label} · {Math.round(w.truth.attack_share * 100)}% attack flows
           </span>
           <span className={`font-mono font-bold uppercase ${outcomeOf(w).good ? 'text-ok' : 'text-crit'}`}>{outcomeOf(w).label}</span>
+          {w.baselines?.random_forest && (
+            <span>
+              Random Forest baseline: {w.baselines.random_forest.attack ? 'attack' : 'benign'} ({Math.round(w.baselines.random_forest.attack_share * 100)}% of flows)
+            </span>
+          )}
+          {w.baselines?.tcp_window_rule && <span>TCP-window rule: {w.baselines.tcp_window_rule.attack ? 'attack' : 'benign'}</span>}
         </p>
       </div>
     </Panel>
@@ -165,12 +217,14 @@ function WindowDetail({ window: w, onReview }: { window: WindowResult; onReview:
 export function Incidents({
   run,
   role,
+  canReview,
   selected,
   onSelect,
   onReview,
 }: {
   run: Run | null;
   role: OperatorRole;
+  canReview: boolean;
   selected: number | null;
   onSelect: (index: number) => void;
   onReview: (index: number, decision: 'APPROVED' | 'REJECTED', note: string) => Promise<void>;
@@ -245,7 +299,7 @@ export function Incidents({
       </div>
       {current && (
         <div className="min-w-0 flex-[1_1_400px]">
-          <WindowDetail window={current} onReview={(decision, note) => onReview(current.index, decision, note)} />
+          <WindowDetail window={current} canReview={canReview} onReview={(decision, note) => onReview(current.index, decision, note)} />
         </div>
       )}
     </div>

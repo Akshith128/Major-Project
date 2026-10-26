@@ -20,6 +20,7 @@ def main() -> None:
     parser.add_argument("--start-row", type=int, default=0)
     parser.add_argument("--mode", choices=["auto", "gemini", "rules"], default="auto")
     parser.add_argument("--operator", default="CLI")
+    parser.add_argument("--seed", type=int, default=None, help="jitter spread windows for repeat runs")
     args = parser.parse_args()
     if not args.dataset:
         parser.error("No datasets found in data/raw/.")
@@ -32,8 +33,9 @@ def main() -> None:
         args.sampling,
         args.start_row,
         args.mode,
-        args.operator,
+        {"username": "cli", "name": args.operator, "role": "analyst"},
         background=False,
+        seed=args.seed,
     )
     print(f"Run {run['id']} · {run['status']} · reasoning: {run['llm']['provider']}")
     for w in run["windows"]:
@@ -47,8 +49,18 @@ def main() -> None:
     if run["error"]:
         print("Error:", run["error"])
     if run["evaluation"]:
-        for layer, m in run["evaluation"].items():
-            print(f"{layer:>10}: precision {m['precision']}  recall {m['recall']}  f1 {m['f1']}")
+        ev = run["evaluation"]
+        rows = {"monitoring": ev["monitoring"], "pipeline": ev["pipeline"], **ev["baselines"]}
+        print(f"
+Attack prevalence {ev['pipeline']['prevalence']} over {ev['pipeline']['n']} windows")
+        for layer, m in rows.items():
+            print(
+                f"{layer:>16}: MCC {m['mcc']}  balanced acc {m['balanced_accuracy']}  "
+                f"precision {m['precision']}  recall {m['recall']}  f1 {m['f1']}  (accuracy 95% CI {m['ci95']['accuracy']})"
+            )
+        for c in ev["comparisons"]:
+            print(f"  McNemar {c['a']} vs {c['b']}: p = {c['p_value']}")
+        print("For hundreds of windows across day-files use: python -m aegis.benchmark")
 
 
 if __name__ == "__main__":

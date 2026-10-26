@@ -11,8 +11,21 @@ load_dotenv(ROOT / ".env")
 DATA_DIR = Path(os.getenv("AEGIS_DATA_DIR", ROOT / "data" / "raw"))
 RUNS_DIR = Path(os.getenv("AEGIS_RUNS_DIR", ROOT / "data" / "runs"))
 
+MODELS_DIR = Path(os.getenv("AEGIS_MODELS_DIR", ROOT / "data" / "models"))
+USERS_FILE = Path(os.getenv("AEGIS_USERS_FILE", ROOT / "data" / "users.json"))
+CONTROL_FILE = Path(os.getenv("AEGIS_CONTROL_FILE", ROOT / "data" / "control.json"))
+
+# Secrets live outside the run files so whoever can edit a run cannot re-sign it.
+SECRETS_DIR = Path(os.getenv("AEGIS_SECRETS_DIR", Path.home() / ".aegis"))
+AUDIT_KEY = os.getenv("AEGIS_AUDIT_KEY")  # else generated once in SECRETS_DIR
+AUTH_SECRET = os.getenv("AEGIS_AUTH_SECRET")  # else generated once in SECRETS_DIR
+# Signed head-of-chain checkpoints, kept apart from the run files.
+CHECKPOINT_FILE = Path(os.getenv("AEGIS_CHECKPOINT_FILE", SECRETS_DIR / "audit_checkpoints.jsonl"))
+SESSION_HOURS = 12
+
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL = os.getenv("AEGIS_MODEL", "gemini-3.5-flash-lite")
+GEMINI_TEMPERATURE = 0.0
 
 # Monitoring gate: windows scoring at or above this go to the detection agent.
 MONITORING_THRESHOLD = 0.6

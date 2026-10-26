@@ -2,7 +2,9 @@
 
 Agents call `ask_json`; if Gemini is not configured or a call fails, they get
 `LLMUnavailable` and fall back to their rule-based path, recording which
-source produced each decision.
+source produced each decision. After each successful call `last_meta` holds
+what the decision record needs to be reproduced: the model version the API
+actually served, temperature, latency and token counts.
 """
 
 import json
@@ -27,6 +29,7 @@ class GeminiLLM:
         self.model = model or config.GEMINI_MODEL
         self._api_key = api_key or config.GOOGLE_API_KEY
         self._client = None
+        self.last_meta: dict = {}
 
     @property
     def configured(self) -> bool:
@@ -51,13 +54,23 @@ class GeminiLLM:
         last_error: Exception | None = None
         for attempt in range(ATTEMPTS):
             try:
+                started = time.perf_counter()
                 response = client.models.generate_content(
                     model=self.model,
                     contents=prompt,
                     config=types.GenerateContentConfig(
-                        response_mime_type="application/json", temperature=0
+                        response_mime_type="application/json", temperature=config.GEMINI_TEMPERATURE
                     ),
                 )
+                usage = getattr(response, "usage_metadata", None)
+                self.last_meta = {
+                    "model_version": getattr(response, "model_version", None) or self.model,
+                    "temperature": config.GEMINI_TEMPERATURE,
+                    "latency_ms": round((time.perf_counter() - started) * 1000),
+                    "tokens_in": getattr(usage, "prompt_token_count", None),
+                    "tokens_out": getattr(usage, "candidates_token_count", None),
+                    "attempts": attempt + 1,
+                }
                 return parse_json(response.text or "")
             except LLMUnavailable:
                 raise
@@ -90,6 +103,7 @@ class NoLLM:
     provider = "rules"
     model = None
     configured = False
+    last_meta: dict = {}
 
     def ask_json(self, prompt: str) -> dict:
         raise LLMUnavailable("Rules-only mode.")

@@ -10,3 +10,7 @@ data/raw/
 data/runs/
 data/runs.json
 *.log
+data/models/
+data/users.json
+data/control.json
+reports/benchmark-*

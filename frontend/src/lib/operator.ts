@@ -1,18 +1,14 @@
 /**
- * Operator personalization: who is at the console, what role they hold, and
- * which view they land on. Stored only in this browser when the operator
- * opts in with "Remember me".
+ * Operator personalization. Who is at the console now comes from a signed-in
+ * account (the server decides the role); this module keeps the session token
+ * and maps each role to its landing page and focus line.
  */
 
-export type OperatorRole = 'analyst' | 'responder' | 'manager' | 'researcher';
+import type { Account, Permission, Role, Session } from '../api';
+
+export type OperatorRole = Role;
 
 export type ConsolePage = 'overview' | 'incidents' | 'governance' | 'agents';
-
-export interface OperatorProfile {
-  name: string;
-  role: OperatorRole;
-  remember: boolean;
-}
 
 export interface RoleSpec {
   id: OperatorRole;
@@ -41,14 +37,14 @@ export const ROLES: RoleSpec[] = [
     id: 'manager',
     label: 'Security Manager',
     blurb: 'Governance and digital trust',
-    focus: 'The review queue, tamper-evident audit trail and evaluation evidence.',
+    focus: 'The review queue, the stop control, the signed audit trail and evaluation evidence.',
     landing: 'governance',
   },
   {
     id: 'researcher',
     label: 'Researcher',
-    blurb: 'Agents and evaluation',
-    focus: 'How the five LangGraph agents route each traffic window.',
+    blurb: 'Agents and evaluation (read-only)',
+    focus: 'How the five LangGraph agents route each traffic window, and how they compare with the baselines.',
     landing: 'agents',
   },
 ];
@@ -60,41 +56,54 @@ export const PAGES: { id: ConsolePage; label: string }[] = [
   { id: 'agents', label: 'Agents' },
 ];
 
-const STORAGE_KEY = 'aegis.operator.v1';
+/** Mirrors PERMISSIONS in aegis/auth.py; the server enforces it, the console only hides buttons. */
+const PERMISSIONS: Record<Permission, OperatorRole[]> = {
+  run: ['analyst', 'manager'],
+  review: ['analyst', 'responder', 'manager'],
+  control: ['manager'],
+};
+
+export function can(account: Account | null | undefined, permission: Permission): boolean {
+  return !!account && PERMISSIONS[permission].includes(account.role);
+}
+
+const STORAGE_KEY = 'aegis.session.v2';
 
 export function roleSpec(role: OperatorRole): RoleSpec {
   return ROLES.find((r) => r.id === role) ?? ROLES[0];
 }
 
-export function loadOperator(): OperatorProfile | null {
+/** "Remember me" keeps the session in localStorage; otherwise it ends with the tab. */
+export function saveSession(session: Session, remember: boolean): void {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<OperatorProfile>;
-    if (typeof parsed.name !== 'string' || !ROLES.some((r) => r.id === parsed.role)) {
-      return null;
-    }
-    return { name: parsed.name, role: parsed.role as OperatorRole, remember: true };
+    clearSession();
+    (remember ? window.localStorage : window.sessionStorage).setItem(STORAGE_KEY, JSON.stringify(session));
   } catch {
-    return null;
+    // Storage can be blocked (private mode); the in-memory session still works.
+    memory = session;
   }
 }
 
-export function saveOperator(profile: OperatorProfile): void {
+let memory: Session | null = null;
+
+export function readSession(): Session | null {
   try {
-    if (profile.remember) {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ name: profile.name, role: profile.role }));
-    } else {
-      window.localStorage.removeItem(STORAGE_KEY);
-    }
+    const raw = window.sessionStorage.getItem(STORAGE_KEY) ?? window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return memory;
+    const session = JSON.parse(raw) as Session;
+    if (!session.token || session.expires_at * 1000 < Date.now()) return null;
+    return session;
   } catch {
-    // Storage can be blocked (private mode); personalization still works for this session.
+    return memory;
   }
 }
 
-export function clearOperator(): void {
+export function clearSession(): void {
+  memory = null;
   try {
     window.localStorage.removeItem(STORAGE_KEY);
+    window.sessionStorage.removeItem(STORAGE_KEY);
+    window.localStorage.removeItem('aegis.operator.v1'); // pre-account profile
   } catch {
     // Nothing stored to clear.
   }
