@@ -4,3 +4,16 @@ env/
 __pycache__/
 *.pyc
 .env
+.env.*
+!.env.example
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+*.log
+data/runs.json
+data/runs.json.tmp

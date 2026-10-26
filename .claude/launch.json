@@ -1,0 +1,34 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "backend",
+      "runtimeExecutable": "D:\\hi\\4-1\\Major_Project\\.venv\\Scripts\\python.exe",
+      "runtimeArgs": [
+        "-m",
+        "uvicorn",
+        "api.app:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8000",
+        "--app-dir",
+        "D:\\hi\\4-1\\Major_Project"
+      ],
+      "cwd": "D:\\hi\\4-1\\Major_Project",
+      "port": 8000
+    },
+    {
+      "name": "dashboard",
+      "runtimeExecutable": "npm.cmd",
+      "runtimeArgs": [
+        "--prefix",
+        "D:\\hi\\4-1\\Major_Project\\frontend",
+        "run",
+        "dev"
+      ],
+      "cwd": "D:\\hi\\4-1\\Major_Project\\frontend",
+      "port": 3000
+    }
+  ]
+}

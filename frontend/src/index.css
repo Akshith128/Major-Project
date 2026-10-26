@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #0A0E13;
+  --color-ink-raised: #0D131A;
+  --color-panel: #111821;
+  --color-panel-2: #17202B;
+  --color-line: #1E2835;
+  --color-line-strong: #2E3B4D;
+  --color-fg: #E6EDF3;
+  --color-soft: #A9B6C4;
+  --color-muted: #8B9AAB;
+  --color-signal: #38D6F5;
+  --color-signal-ink: #06222A;
+  --color-ok: #3DDC97;
+  --color-warn: #FFC15A;
+  --color-crit: #FF8A8A;
+
+  --font-sans: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-ink);
+    color: var(--color-fg);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  code, pre, .font-mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 2px;
+  }
+}
+
+.aegis-grid {
+  background-color: var(--color-ink);
+  background-image:
+    linear-gradient(#141C26 1px, transparent 1px),
+    linear-gradient(90deg, #141C26 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}

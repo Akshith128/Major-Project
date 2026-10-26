@@ -2,15 +2,41 @@ from services.llm_service import generate_response
 
 
 def response_agent(state):
-    severity = state.get("severity", "HIGH")
-    risk_score = state.get("risk_score", 0)
-    raw_data = state.get("raw_data", {})
-    monitoring_result = state.get("monitoring_result", {})
+    severity = state.get(
+        "severity",
+        "HIGH"
+    )
+
+    risk_score = state.get(
+        "risk_score",
+        0
+    )
+
+    raw_data = state.get(
+        "current_observation",
+        state.get(
+            "raw_data",
+            {}
+        )
+    )
+
+    monitoring_result = state.get(
+        "monitoring_result",
+        {}
+    )
+
+    response_cycle = (
+        state.get(
+            "response_cycle",
+            0
+        )
+        + 1
+    )
 
     prompt = f"""
 You are an autonomous cybersecurity response agent.
 
-A monitored security incident has increased in severity.
+A monitored security incident requires defensive action.
 
 Security event:
 {raw_data}
@@ -42,12 +68,50 @@ JUSTIFICATION: <short explanation>
 PRIORITY: <LOW|MEDIUM|HIGH|CRITICAL>
 """
 
-    response = generate_response(prompt)
+    response = generate_response(
+        prompt
+    )
+
+    response_history = state.get(
+        "response_history",
+        []
+    )
+
+    updated_history = (
+        response_history
+        + [
+            {
+                "response_cycle": response_cycle,
+                "severity": severity,
+                "risk_score": risk_score,
+                "monitoring_cycle": state.get(
+                    "monitoring_count",
+                    0
+                ),
+                "raw_response": response
+            }
+        ]
+    )
 
     return {
         "response_result": {
-            "raw_response": response
+            "raw_response": response,
+            "response_cycle": response_cycle,
+            "severity": severity,
+            "risk_score": risk_score
         },
-        "response_required": True,
+
+        "response_history": (
+            updated_history
+        ),
+
+        "response_cycle": response_cycle,
+
+        "response_pending": True,
+
+        "response_required": False,
+
+        "response_completed": True,
+
         "status": "response_completed"
     }
