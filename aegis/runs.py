@@ -220,6 +220,7 @@ class RunService:
                 evidence, run["detector"] = anomaly.score(
                     run["config"]["dataset_id"], loaded, run["config"]["window_size"], run["config"]["detector_baseline"],
                     ablate_tcp_window=True,
+                    confirmed=family.confirmed(),  # analyst-confirmed incidents also inform detection
                 )
                 voter = family.voter(run["config"]["dataset_id"], run["config"]["window_size"], ablate_tcp_window=True)
                 for window, ev in zip(loaded, evidence):

@@ -72,8 +72,11 @@ one-class SVM trained on normal traffic, without the TCP-window shortcut and
 gated by the homogeneity score, reaches MCC 0.74. That compares with 0.65 for
 the previous detector and 0.66 for the rules, with false alarms down from 19% to
 12%. Attack families are named 57% correctly for never-seen tools and 98% once
-analysts have confirmed similar incidents. See `reports/detector-improvement-results.md`
-and `reports/typing-improvement-results.md`.
+analysts have confirmed similar incidents. Once analysts have confirmed incidents,
+the incident memory also decides detection: on fresh seeds 5–6 that raised MCC
+from 0.74 to 0.78 and cut false alarms from 12% to 8%, at the cost of recall
+falling from 98% to 93%. See `reports/detector-improvement-results.md`,
+`reports/detector-tuning-results.md` and `reports/typing-improvement-results.md`.
 
 **Hybrid mode** (`mode: "hybrid"`, or `--mode hybrid` in the benchmark):
 `aegis/anomaly.py` trains a one-class SVM on *normal* traffic windows only

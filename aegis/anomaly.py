@@ -123,6 +123,7 @@ def _fit(benign: list[dict], incidents: list, keys: list[str]) -> dict:
         "threshold": float(np.quantile(held_scores, 1 - FALSE_ALARM_BUDGET)),
         "benign_median_score": float(np.median(held_scores)),
         "held_out_scores": held_scores,
+        "normal_scaled": scaler.transform(x),  # every normal window, for the incident-memory check
         "median": np.median(x, axis=0),
         "iqr": np.maximum(np.subtract(*np.percentile(x, [75, 25], axis=0)), 1e-6),
         "incident_vectors": scaler.transform(np.array([[f[k] for k in keys] for f, _, _ in incidents], float))
@@ -168,8 +169,16 @@ def _describe(name: str, value: float, median: float, z: float) -> str:
     return f"{name} = {value:g} ({abs(z):.1f} IQR {direction} normal {median:g})"
 
 
-def evidence(bundle: dict, features: dict) -> dict:
-    """Label-free verdict and evidence for one window's features."""
+def evidence(bundle: dict, features: dict, confirmed: list[dict] | None = None) -> dict:
+    """Label-free verdict and evidence for one window's features.
+
+    `confirmed` are attack incidents an analyst already confirmed. When there
+    are any, the incident memory decides: the window is an attack if it is
+    closer to a confirmed incident than to every normal window, and normal
+    otherwise. On development windows this raised MCC from 0.70 to 0.76 and
+    cut false alarms from 14% to 10% (scripts/detector_tuning.py); it helps
+    repeats of known attacks, not never-seen ones.
+    """
     keys = bundle["keys"]
     raw = np.array([features[k] for k in keys], float)
     scaled = bundle["scaler"].transform(raw.reshape(1, -1))
@@ -193,8 +202,9 @@ def evidence(bundle: dict, features: dict) -> dict:
         for i in np.argsort(distances)[:NEIGHBOURS]:
             family, day = bundle["incident_labels"][i]
             similar.append({"family": family, "day": day.split("_")[0], "distance": round(float(distances[i]), 2)})
-    return {
+    out = {
         "method": METHOD,
+        "decided_by": "detector",
         "anomalous": score > threshold and homogeneity >= HOMOGENEITY_GATE,
         "model_anomalous": score > threshold,
         "homogeneity": homogeneity,
@@ -205,8 +215,38 @@ def evidence(bundle: dict, features: dict) -> dict:
         "deviations": deviations,
         "similar_incidents": similar,
     }
+    usable = [c for c in (confirmed or []) if all(k in c["features"] for k in keys)]
+    if usable:
+        memory = bundle["scaler"].transform(np.array([[c["features"][k] for k in keys] for c in usable], float))
+        to_attack = np.linalg.norm(memory - scaled, axis=1)
+        nearest = int(np.argmin(to_attack))
+        to_normal = float(np.linalg.norm(bundle["normal_scaled"] - scaled, axis=1).min())
+        match = bool(to_attack[nearest] < to_normal)
+        out.update(
+            decided_by="incident memory",
+            anomalous=match,
+            memory={
+                "nearest_confirmed": usable[nearest].get("family"),
+                "distance_to_confirmed": round(float(to_attack[nearest]), 3),
+                "distance_to_normal": round(to_normal, 3),
+                "confirmed_incidents": len(usable),
+                "verdict": "matches a confirmed incident" if match else "closer to normal traffic than to any confirmed incident",
+            },
+        )
+        if match:
+            out["deviations"] = [f"close to a confirmed {usable[nearest].get('family')} incident"] + out["deviations"]
+    return out
 
 
-def score(test_dataset: str, windows: list[dict], window_size: int, baseline: str = "same-network", ablate_tcp_window: bool = False) -> tuple[list[dict], dict]:
+def score(
+    test_dataset: str,
+    windows: list[dict],
+    window_size: int,
+    baseline: str = "same-network",
+    ablate_tcp_window: bool = False,
+    confirmed=None,
+) -> tuple[list[dict], dict]:
+    """`confirmed`: a list of confirmed incidents, or a function window -> list (benchmark simulation)."""
     bundle, info = fit(test_dataset, windows, window_size, baseline, ablate_tcp_window)
-    return [evidence(bundle, w["features"]) for w in windows], info
+    memory_for = confirmed if callable(confirmed) else (lambda w: confirmed)
+    return [evidence(bundle, w["features"], memory_for(w)) for w in windows], info

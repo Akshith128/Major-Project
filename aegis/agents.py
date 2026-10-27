@@ -167,7 +167,9 @@ def monitoring_agent(state) -> dict:
                 "score": detector["score"],
                 "suspicious": detector["anomalous"],
                 "threshold": config.MONITORING_THRESHOLD,
-                "signals": detector["deviations"] or ["No feature far from normal"],
+                "signals": (detector["deviations"] or ["No feature far from normal"])
+                + ([f"Incident memory: {detector['memory']['verdict']}"] if detector.get("memory") else []),
+                "decided_by": detector.get("decided_by", "detector"),
                 "method": detector["method"],
                 "homogeneity_score": monitoring_score(f),
             },

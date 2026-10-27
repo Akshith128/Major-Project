@@ -194,6 +194,25 @@ class HybridTests(unittest.TestCase):
         self.assertEqual(state["governance"]["decision"], "PENDING_REVIEW")
 
 
+class DetectorMemoryTests(unittest.TestCase):
+    def setUp(self):
+        self.dir = isolate(self)
+        self.dataset = make_dataset(self.dir)
+        make_dataset(self.dir, name="other-day.parquet", seed=11)
+
+    def test_confirmed_incidents_decide_when_present(self):
+        windows = data.load_windows(self.dataset, windows=6, window_size=100, ablate_tcp_window=True)
+        attack, benign = windows[-1], windows[0]
+        confirmed = [{"features": attack["features"], "family": "DDoS"}]
+        evidence, _ = anomaly.score(self.dataset, windows, 100, ablate_tcp_window=True, confirmed=confirmed)
+        self.assertEqual(evidence[-1]["decided_by"], "incident memory")
+        self.assertTrue(evidence[-1]["anomalous"])
+        self.assertFalse(evidence[0]["anomalous"])
+        self.assertEqual(evidence[-1]["memory"]["nearest_confirmed"], "DDoS")
+        plain, _ = anomaly.score(self.dataset, windows, 100, ablate_tcp_window=True)
+        self.assertEqual(plain[0]["decided_by"], "detector")
+
+
 class FamilyTests(unittest.TestCase):
     def setUp(self):
         isolate(self)

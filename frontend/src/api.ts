@@ -85,6 +85,16 @@ export interface DetectorEvidence {
   confidence: number;
   deviations: string[];
   similar_incidents: { family: string; day: string; distance: number }[];
+  decided_by?: 'detector' | 'incident memory';
+  homogeneity?: number;
+  model_anomalous?: boolean;
+  memory?: {
+    nearest_confirmed: string | null;
+    distance_to_confirmed: number;
+    distance_to_normal: number;
+    confirmed_incidents: number;
+    verdict: string;
+  };
 }
 
 export interface WindowResult {

@@ -111,7 +111,9 @@ function buildSteps(run: Run, w: WindowResult): Step[] {
     title: det ? 'Anomaly detector' : 'Monitoring gate',
     agent: 'Agent 1',
     caption: det
-      ? 'An Isolation Forest that learned only normal traffic scores how unusual this window is. Above the threshold (5% false-alarm budget) it is flagged.'
+      ? det.memory
+        ? 'Analysts have confirmed earlier incidents, so the incident memory decides: the window is an attack if it sits closer to a confirmed incident than to any normal traffic.'
+        : 'A one-class SVM that learned only normal traffic scores how unusual this window is; it is flagged only if it is also uniform enough (homogeneity at least 0.6).'
       : 'A homogeneity score: attack traffic tends to repeat one flow pattern. At or above 0.6 the window goes to detection.',
     body: (
       <div className="flex flex-col gap-4">
@@ -124,6 +126,15 @@ function buildSteps(run: Run, w: WindowResult): Step[] {
         <div className="flex flex-col gap-1.5 text-sm text-soft">
           <Stagger items={w.monitoring.signals.map((s) => <span key={s}>• {s}</span>)} />
         </div>
+        {det?.memory && (
+          <div className="aegis-fade-up flex flex-wrap items-center gap-2 font-mono text-xs" style={{ animationDelay: '600ms' }}>
+            <span className="rounded-lg border border-line-strong px-2.5 py-1.5">nearest normal window: d={det.memory.distance_to_normal}</span>
+            <span className={`rounded-lg border px-2.5 py-1.5 ${det.memory.verdict.startsWith('matches') ? 'border-crit text-crit' : 'border-line-strong'}`}>
+              nearest confirmed {det.memory.nearest_confirmed}: d={det.memory.distance_to_confirmed}
+            </span>
+            <span className="text-muted">→ decided by the incident memory ({det.memory.confirmed_incidents} confirmed incidents)</span>
+          </div>
+        )}
         <Verdict ok={!w.monitoring.suspicious}>{w.monitoring.suspicious ? 'Abnormal: sent on for analysis' : 'Normal traffic: no action needed'}</Verdict>
       </div>
     ),

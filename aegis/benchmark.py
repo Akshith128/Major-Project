@@ -80,10 +80,16 @@ def run(args) -> dict:
             )
             per_window, _ = baseline_verdicts(d["dataset_id"], loaded, args.label_threshold, args.ablate_tcp_window)
             if args.mode == "hybrid":
-                evidence, detector_info[d["dataset_id"]] = anomaly.score(
-                    d["dataset_id"], loaded, args.window_size, args.baseline, args.ablate_tcp_window
-                )
                 same_day = family.labelled_windows(d["dataset_id"], args.window_size, ablate_tcp_window=args.ablate_tcp_window) if args.memory else []
+
+                def confirmed_before(window, pool=same_day):
+                    # Incidents of this capture an analyst confirmed earlier (well before this window).
+                    return [e for e in pool if e["row_start"] <= window["row_start"] - family.GUARD_ROWS]
+
+                evidence, detector_info[d["dataset_id"]] = anomaly.score(
+                    d["dataset_id"], loaded, args.window_size, args.baseline, args.ablate_tcp_window,
+                    confirmed=confirmed_before if args.memory else None,
+                )
                 base = family.voter(d["dataset_id"], args.window_size, ablate_tcp_window=args.ablate_tcp_window)
                 for w, ev in zip(loaded, evidence):
                     if ev["anomalous"]:
