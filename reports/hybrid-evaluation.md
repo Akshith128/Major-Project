@@ -51,6 +51,35 @@ Gemini's errors were systematic. It called DDoS floods "DoS" or "Port Scan", Bot
 | Confidence calibration | ECE 0.35; right 57% of the time at confidence ≥ 80 | Confidence is the detector's empirical p-value against normal traffic, not a self-report |
 | Auto-approvals | 3, one of them benign | 0 |
 
+## Local model (Ollama, qwen2.5:3b) vs Gemini
+
+Same 400 windows. Raw results: `reports/benchmark-ollama-seed0.json` and `reports/benchmark-hybrid-same-network-ollama.json`.
+
+**When the language model decides:**
+
+| | Gemini | Ollama qwen2.5:3b |
+|---|---|---|
+| MCC [95% CI] | **0.625** [0.57, 0.69] | 0.544 [0.48, 0.60] |
+| Recall | 1.00 | 1.00 |
+| False alarm rate | **0.23** | 0.31 |
+| Attack typing | 8/76 (11%) | 9/76 (12%) |
+| Calibration (ECE) | 0.35 | 0.38 |
+| Schema failures · fallbacks | 0 · 19% (quota) | 19 · 11% |
+| Median / p95 latency | 7.6 s / 16.9 s | **1.6 s / 2.2 s** |
+
+The local model said "threat" to every window the monitoring gate passed on. Its verdicts equal the gate's exactly, so it added no detection judgement. Gemini was right on 27 windows where Ollama was wrong; the reverse never happened (p < 0.001).
+
+**In the hybrid pipeline** (the detector decides, so detection is identical):
+
+| | Gemini | Ollama qwen2.5:3b |
+|---|---|---|
+| Explanations answered | 50 of 137 (quota) | **137 of 137** |
+| Attack typing when the model answered | 3/45 (7%) | **37/68 (54%)** |
+| Retrieval of similar incidents alone | 42/68 (62%) | 42/68 (62%) |
+| Median / p95 latency | 6.1 s / 8.4 s | **2.1 s / 2.7 s** |
+
+Given the similar-incident evidence, the small local model mostly followed it (54% correct), while Gemini mostly ignored it (7%). Neither beat the retrieval vote on its own (62%).
+
 ## Caveats
 
 - **Free-tier quota.** The free-tier Gemini quota ran out during the hybrid run (a later test call returned "quota exceeded"). So the hybrid typing figure mixes 45 Gemini answers with 23 retrieval fallbacks, and part of the Gemini run's 19% fallback rate is probably the same cause.
@@ -62,7 +91,8 @@ Gemini's errors were systematic. It called DDoS floods "DoS" or "Port Scan", Bot
 
 1. **No single pipeline wins everything.** On raw detection, rules score highest, but only by leaning on the shortcut feature. Without it, the benign-trained detector is clearly better (0.61 vs 0.42) and needs no attack labels.
 2. **Gemini is not a reliable classifier of attack families from aggregate flow features.** It was 7–11% correct here. Retrieval of similar known incidents was 62–71% correct, at no API cost.
-3. **What fits the evidence is a split of roles:**
+3. **The free local model is a workable replacement for Gemini** in the role that matters: explaining and drafting responses in hybrid mode. It answered every call, about 3× faster, at no cost. As a decision-maker it was worse than Gemini and rubber-stamped the gate.
+4. **What fits the evidence is a split of roles:**
    - the detector decides;
    - retrieval names the family and the ATT&CK techniques;
    - Gemini writes the explanation and the response plan from that evidence, and may raise but never lower severity;
