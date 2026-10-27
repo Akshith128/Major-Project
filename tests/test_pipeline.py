@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from aegis import audit, auth, config, control, data, family
+from aegis import anomaly, audit, auth, config, control, data, family
 from aegis.family import FamilyVote
 from aegis.agents import governance_agent, monitoring_score, risk_agent
 from aegis.evaluation import confusion, expected_attack_type, mcnemar, wilson
@@ -310,7 +310,10 @@ class RunServiceTests(unittest.TestCase):
         run = self.service(FakeLLM()).start(self.dataset, windows=6, window_size=100, mode="hybrid", background=False)
         self.assertEqual(run["status"], "COMPLETED")
         self.assertEqual(run["detector"]["baseline"], "same-network")
-        self.assertEqual(run["windows"][0]["monitoring"]["method"], "isolation-forest (benign-trained)")
+        self.assertEqual(run["windows"][0]["monitoring"]["method"], anomaly.METHOD)
+        self.assertNotIn("unique_tcp_window_ratio", run["windows"][0]["features"])  # shortcut feature dropped
+        ev = run["windows"][0]["detector"]
+        self.assertEqual(ev["anomalous"], ev["model_anomalous"] and ev["homogeneity"] >= anomaly.HOMOGENEITY_GATE)
         self.assertIn("detector", run["windows"][0])
         self.assertIn("attack_typing", run["evaluation"])
         flagged = [w for w in run["windows"] if w.get("detection")]

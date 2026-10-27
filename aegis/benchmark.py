@@ -52,6 +52,8 @@ def _verdicts(windows: list[dict]) -> dict:
 def run(args) -> dict:
     if args.mode == "gemini":
         args.mode = "llm"
+    if args.mode == "hybrid" and not args.keep_tcp_window:
+        args.ablate_tcp_window = True  # the hybrid detector avoids the TCP-window shortcut
     llm = NoLLM() if args.mode == "rules" or args.no_llm else make_llm(args.provider)
     if args.mode == "llm" and not llm.configured:
         raise SystemExit(f"LLM mode needs a working reasoning model: {llm.note}")
@@ -281,6 +283,7 @@ def main() -> None:
                         help="hybrid: simulate analyst-confirmed incidents from earlier in the same capture")
     parser.add_argument("--label-threshold", type=float, default=0.5)
     parser.add_argument("--ablate-tcp-window", action="store_true")
+    parser.add_argument("--keep-tcp-window", action="store_true", help="hybrid: keep the TCP-window feature (old behaviour)")
     parser.add_argument("--include-infiltration", action="store_true")
     parser.add_argument("--datasets", nargs="*", help="day-file name prefixes, e.g. DDoS1 Botnet")
     parser.add_argument("--out", default=None, help="output path without extension")

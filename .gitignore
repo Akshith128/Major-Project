@@ -20,3 +20,6 @@ reports/final-*.json
 reports/final-*.log
 reports/final-*.md
 !reports/final-typing-comparison.txt
+reports/final2-*.json
+reports/final2-*.log
+reports/final2-*.md

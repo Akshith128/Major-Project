@@ -67,8 +67,16 @@ p = 1.0), and without that feature the rules pipeline fell to MCC 0.40. A
 Random Forest trained on other days scored MCC 0.21: each day-file holds a
 different attack, so cross-day detection is hard for every method.
 
+**Current results** (fresh windows, seeds 3–4): the hybrid detector, a
+one-class SVM trained on normal traffic, without the TCP-window shortcut and
+gated by the homogeneity score, reaches MCC 0.74. That compares with 0.65 for
+the previous detector and 0.66 for the rules, with false alarms down from 19% to
+12%. Attack families are named 57% correctly for never-seen tools and 98% once
+analysts have confirmed similar incidents. See `reports/detector-improvement-results.md`
+and `reports/typing-improvement-results.md`.
+
 **Hybrid mode** (`mode: "hybrid"`, or `--mode hybrid` in the benchmark):
-`aegis/anomaly.py` trains an Isolation Forest on *normal* traffic windows only
+`aegis/anomaly.py` trains a one-class SVM on *normal* traffic windows only
 (from the same capture, never overlapping the windows being judged, or with
 `--baseline cross-day` from other day-files). It flags windows outside a fixed
 5% false-alarm budget and decides the verdict. Gemini then explains the window,

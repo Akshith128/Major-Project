@@ -12,7 +12,13 @@ Two ways to learn "normal":
 Infiltration day-files are never used. Labels only decide which training
 windows count as normal; the detector never sees an attack.
 
-Model: standardised window features → IsolationForest. Threshold: a fixed
+Model: standardised window features → one-class SVM (RBF kernel, nu = the
+false-alarm budget), computed WITHOUT the TCP initial-window feature (a testbed
+shortcut). A window is flagged only if it is abnormal for the model AND its
+homogeneity score (attack traffic repeats one flow pattern) reaches the
+original 0.6 monitoring gate — two independent signals must agree. On the
+development windows (scripts/detector_experiment.py) this raised MCC from 0.41
+(Isolation Forest with the shortcut feature) to 0.68. Threshold: a fixed
 false-alarm budget — the 95th percentile of anomaly scores on held-out normal
 windows — chosen in advance, not tuned on attacks. Confidence is 100 × the
 share of held-out normal windows that look less unusual (an empirical p-value),
@@ -34,6 +40,8 @@ from . import config, data
 from .evaluation import expected_attack_type
 
 FALSE_ALARM_BUDGET = 0.05
+HOMOGENEITY_GATE = 0.6  # the original monitoring threshold, not tuned
+METHOD = "one-class SVM + homogeneity gate (benign-trained, no TCP-window feature)"
 GUARD_ROWS = 1_000  # keep training windows this far from any judged window
 SAMPLES_PER_FILE = 600
 SAME_NETWORK_SAMPLES = 4_000
@@ -97,7 +105,7 @@ def _other_days(files: tuple[str, ...], window_size: int, ablate: bool) -> dict:
 
 
 def _fit(benign: list[dict], incidents: list, keys: list[str]) -> dict:
-    from sklearn.ensemble import IsolationForest
+    from sklearn.svm import OneClassSVM
     from sklearn.preprocessing import StandardScaler
 
     rng = np.random.default_rng(SEED)
@@ -106,7 +114,7 @@ def _fit(benign: list[dict], incidents: list, keys: list[str]) -> dict:
     split = int(len(x) * 0.8)
     train, held_out = x[order[:split]], x[order[split:]]
     scaler = StandardScaler().fit(train)
-    forest = IsolationForest(n_estimators=200, random_state=SEED).fit(scaler.transform(train))
+    forest = OneClassSVM(nu=FALSE_ALARM_BUDGET, gamma="scale").fit(scaler.transform(train))
     held_scores = np.sort(-forest.score_samples(scaler.transform(held_out)))
     return {
         "keys": keys,
@@ -144,7 +152,7 @@ def fit(test_dataset: str, windows: list[dict], window_size: int, baseline: str 
         raise ValueError("Not enough normal traffic windows to learn a baseline.")
     bundle = _fit(benign, other["incidents"], _keys(benign[0]))
     info = {
-        "method": "isolation-forest (benign-trained)",
+        "method": METHOD,
         "baseline": baseline,
         "normal_windows": len(benign),
         "sources": sources,
@@ -166,6 +174,9 @@ def evidence(bundle: dict, features: dict) -> dict:
     raw = np.array([features[k] for k in keys], float)
     scaled = bundle["scaler"].transform(raw.reshape(1, -1))
     score = float(-bundle["forest"].score_samples(scaled)[0])
+    from .agents import monitoring_score  # deferred: agents imports this package's siblings
+
+    homogeneity = monitoring_score(features)
     held = bundle["held_out_scores"]
     confidence = int(round(100 * np.searchsorted(held, score, side="left") / (len(held) + 1)))
     threshold, middle = bundle["threshold"], bundle["benign_median_score"]
@@ -183,8 +194,10 @@ def evidence(bundle: dict, features: dict) -> dict:
             family, day = bundle["incident_labels"][i]
             similar.append({"family": family, "day": day.split("_")[0], "distance": round(float(distances[i]), 2)})
     return {
-        "method": "isolation-forest (benign-trained)",
-        "anomalous": score > threshold,
+        "method": METHOD,
+        "anomalous": score > threshold and homogeneity >= HOMOGENEITY_GATE,
+        "model_anomalous": score > threshold,
+        "homogeneity": homogeneity,
         "anomaly_score": round(score, 4),
         "threshold": round(threshold, 4),
         "score": round(normalised, 3),
