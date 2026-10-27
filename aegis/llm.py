@@ -57,7 +57,7 @@ class GeminiLLM:
             )
         return self._client
 
-    def ask_json(self, prompt: str) -> dict:
+    def ask_json(self, prompt: str, schema: dict | None = None) -> dict:
         from google.genai import types
 
         client = self._get_client()
@@ -134,11 +134,11 @@ class OllamaLLM:
         self.note = f"Model {self.model} is not pulled. Run: ollama pull {self.model}"
         return False
 
-    def ask_json(self, prompt: str) -> dict:
+    def ask_json(self, prompt: str, schema: dict | None = None) -> dict:
         body = {
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
-            "format": "json",
+            "format": schema or "json",  # a JSON Schema makes Ollama emit exactly that shape
             "stream": False,
             "options": {"temperature": config.LLM_TEMPERATURE, "seed": 7},
         }
@@ -177,7 +177,7 @@ class GroqLLM:
     def configured(self) -> bool:
         return bool(self._api_key)
 
-    def ask_json(self, prompt: str) -> dict:
+    def ask_json(self, prompt: str, schema: dict | None = None) -> dict:
         if not self._api_key:
             raise LLMUnavailable("GROQ_API_KEY is not set.")
         body = {
@@ -230,5 +230,5 @@ class NoLLM:
     configured = False
     last_meta: dict = {}
 
-    def ask_json(self, prompt: str) -> dict:
+    def ask_json(self, prompt: str, schema: dict | None = None) -> dict:
         raise LLMUnavailable("Rules-only mode.")

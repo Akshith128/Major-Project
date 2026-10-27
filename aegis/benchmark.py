@@ -25,7 +25,7 @@ from datetime import datetime
 from pathlib import Path
 from statistics import mean, stdev
 
-from . import anomaly, config, data
+from . import anomaly, config, data, family
 from .evaluation import confusion, dominant_attack_label, evaluate
 from .graph import build_graph
 from .llm import NoLLM, make_llm
@@ -69,7 +69,7 @@ def run(args) -> dict:
         raise SystemExit("No day-files to benchmark in data/raw/.")
 
     results = []  # every analysed window, tagged with dataset / seed / repeat
-    for seed in range(args.seeds):
+    for seed in range(args.seed_start, args.seed_start + args.seeds):
         for d in datasets:
             loaded = data.load_windows(
                 d["dataset_id"], args.windows_per_file, args.window_size, "spread",
@@ -81,7 +81,18 @@ def run(args) -> dict:
                 evidence, detector_info[d["dataset_id"]] = anomaly.score(
                     d["dataset_id"], loaded, args.window_size, args.baseline, args.ablate_tcp_window
                 )
+                same_day = family.labelled_windows(d["dataset_id"], args.window_size, ablate_tcp_window=args.ablate_tcp_window) if args.memory else []
+                base = family.voter(d["dataset_id"], args.window_size, ablate_tcp_window=args.ablate_tcp_window)
                 for w, ev in zip(loaded, evidence):
+                    if ev["anomalous"]:
+                        if args.memory:
+                            # Incidents of this capture confirmed earlier (well before this window).
+                            earlier = [e | {"source": "confirmed incident"} for e in same_day
+                                       if e["row_start"] <= w["row_start"] - family.GUARD_ROWS]
+                            voter = family.FamilyVote(base.entries + earlier) if earlier else base
+                        else:
+                            voter = base
+                        ev["family_vote"] = voter.vote(w["features"])
                     w["detector"] = ev
             for w in loaded:
                 w.pop("flows")
@@ -110,7 +121,7 @@ def run(args) -> dict:
 
     # Sampling variance: one evaluation per seed.
     per_seed = defaultdict(lambda: defaultdict(list))
-    for seed in range(args.seeds):
+    for seed in range(args.seed_start, args.seed_start + args.seeds):
         windows = [r for r in first if r["seed"] == seed]
         truth = [w["truth"]["is_attack"] for w in windows]
         for name, verdicts in _verdicts(windows).items():
@@ -191,7 +202,7 @@ def markdown(report: dict) -> str:
         "",
         f"{report['windows']} windows ({s['windows_per_file']} per day-file × {len(s['datasets'])} day-files × "
         f"{s['seeds']} seeds), {s['window_size']} flows each, mode: {s['mode']}"
-        f"{' (' + s['baseline'] + ' baseline)' if s['mode'] == 'hybrid' else ''}, reasoning: {s['provider']}"
+        f"{' (' + s['baseline'] + ' baseline' + (', with incident memory' if s.get('memory') else '') + ')' if s['mode'] == 'hybrid' else ''}, reasoning: {s['provider']}"
         f"{' ' + s['model'] if s['model'] else ''}. Label threshold {s['label_threshold']}"
         f"{', TCP-window feature removed' if s['ablate_tcp_window'] else ''}. "
         f"Attack prevalence {pooled['pipeline']['prevalence']}.",
@@ -258,6 +269,7 @@ def main() -> None:
     parser.add_argument("--windows-per-file", type=int, default=50)
     parser.add_argument("--window-size", type=int, default=100)
     parser.add_argument("--seeds", type=int, default=3)
+    parser.add_argument("--seed-start", type=int, default=0, help="first sampling seed (use unseen seeds for final tests)")
     parser.add_argument("--repeats", type=int, default=1, help="LLM repeats on identical windows")
     parser.add_argument("--mode", choices=["auto", "llm", "gemini", "rules", "hybrid"], default="rules")
     parser.add_argument("--provider", choices=["ollama", "groq", "gemini"], default=None,
@@ -265,6 +277,8 @@ def main() -> None:
     parser.add_argument("--baseline", choices=list(anomaly.BASELINES), default="same-network",
                         help="hybrid: how the anomaly detector learns normal traffic")
     parser.add_argument("--no-llm", action="store_true", help="hybrid without a reasoning model (detector-only)")
+    parser.add_argument("--memory", action="store_true",
+                        help="hybrid: simulate analyst-confirmed incidents from earlier in the same capture")
     parser.add_argument("--label-threshold", type=float, default=0.5)
     parser.add_argument("--ablate-tcp-window", action="store_true")
     parser.add_argument("--include-infiltration", action="store_true")

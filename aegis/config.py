@@ -14,6 +14,8 @@ RUNS_DIR = Path(os.getenv("AEGIS_RUNS_DIR", ROOT / "data" / "runs"))
 MODELS_DIR = Path(os.getenv("AEGIS_MODELS_DIR", ROOT / "data" / "models"))
 USERS_FILE = Path(os.getenv("AEGIS_USERS_FILE", ROOT / "data" / "users.json"))
 CONTROL_FILE = Path(os.getenv("AEGIS_CONTROL_FILE", ROOT / "data" / "control.json"))
+# Analyst-confirmed incidents the family vote learns from.
+MEMORY_FILE = Path(os.getenv("AEGIS_MEMORY_FILE", ROOT / "data" / "incident_memory.jsonl"))
 
 # Secrets live outside the run files so whoever can edit a run cannot re-sign it.
 SECRETS_DIR = Path(os.getenv("AEGIS_SECRETS_DIR", Path.home() / ".aegis"))

@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Check, X } from 'lucide-react';
-import { LLM_SOURCES, type Provenance, type Run, type WindowResult } from '../api';
+import { ATTACK_FAMILIES, LLM_SOURCES, type Provenance, type Run, type WindowResult } from '../api';
 import type { OperatorRole } from '../lib/operator';
 import { DecisionBadge, EmptyState, Kicker, Panel, SeverityBadge, SourceTag } from './ui';
 
@@ -48,17 +48,18 @@ function ReviewBox({
 }: {
   window: WindowResult;
   canReview: boolean;
-  onReview: (decision: 'APPROVED' | 'REJECTED', note: string) => Promise<void>;
+  onReview: (decision: 'APPROVED' | 'REJECTED', note: string, family?: string) => Promise<void>;
 }) {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const [family, setFamily] = useState(w.detection?.attack_type ?? 'Unknown');
   const [error, setError] = useState<string | null>(null);
 
   const decide = async (decision: 'APPROVED' | 'REJECTED') => {
     setBusy(true);
     setError(null);
     try {
-      await onReview(decision, note.trim());
+      await onReview(decision, note.trim(), family !== w.detection?.attack_type ? family : undefined);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Review failed.');
     } finally {
@@ -71,6 +72,7 @@ function ReviewBox({
       <p className={`m-0 text-sm ${w.review.decision === 'APPROVED' ? 'text-ok' : 'text-crit'}`}>
         {w.review.decision === 'APPROVED' ? 'Approved' : 'Rejected'} by {w.review.operator}
         {w.review.username && ` (${w.review.username})`} · {new Date(w.review.at).toLocaleString()}
+        {w.review.family && ` · family ${w.review.family}${w.review.family_corrected ? ' (corrected)' : ''}`}
         {w.review.note && <span className="block text-soft">“{w.review.note}”</span>}
       </p>
     );
@@ -87,6 +89,17 @@ function ReviewBox({
       <label className="flex flex-col gap-2 text-sm font-semibold">
         Your approval is required before this response is executed
         <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={500} placeholder="Why you approve or reject — recorded in the audit trail" className="rounded-lg border border-line-strong bg-ink p-3 text-sm font-normal text-fg placeholder:text-muted" />
+      </label>
+      <label className="flex flex-wrap items-center gap-2 text-sm text-soft">
+        Attack family
+        <select value={family} onChange={(e) => setFamily(e.target.value)} className="h-10 rounded-lg border border-line-strong bg-ink px-2 text-sm text-fg">
+          {ATTACK_FAMILIES.map((f) => (
+            <option key={f} value={f}>
+              {f}
+            </option>
+          ))}
+        </select>
+        <span className="text-xs text-muted">Approving confirms it; similar incidents will be named the same way.</span>
       </label>
       <div className="flex flex-wrap gap-2.5">
         <button type="button" disabled={busy} onClick={() => decide('APPROVED')} className="flex h-11 cursor-pointer items-center gap-2 rounded-lg bg-ok px-4 text-sm font-bold text-[#062417] disabled:opacity-50">
@@ -108,7 +121,7 @@ function WindowDetail({
 }: {
   window: WindowResult;
   canReview: boolean;
-  onReview: (decision: 'APPROVED' | 'REJECTED', note: string) => Promise<void>;
+  onReview: (decision: 'APPROVED' | 'REJECTED', note: string, family?: string) => Promise<void>;
 }) {
   const f = w.features;
   const shown: [string, string][] = [
@@ -128,7 +141,7 @@ function WindowDetail({
           {w.detection?.attack_type && <span className="text-sm font-semibold">{w.detection.attack_type}</span>}
         </div>
 
-        <dl className="m-0 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+        <dl className="m-0 grid grid-cols-2 gap-2.5 sm:grid-cols-3 2xl:grid-cols-6">
           {shown.map(([k, v]) => (
             <div key={k} className="rounded-lg border border-line bg-ink-raised px-3 py-2">
               <dt className="text-xs text-muted">{k}</dt>
@@ -139,7 +152,7 @@ function WindowDetail({
 
         <div className="flex flex-col gap-3">
           <Kicker>Agent trace</Kicker>
-          <ol className="m-0 flex list-none flex-col gap-3 p-0">
+          <ol className="m-0 grid list-none grid-cols-1 gap-x-6 gap-y-3 p-0 lg:grid-cols-2">
             <Step name={w.detector ? '1 · Monitoring · anomaly detector' : '1 · Monitoring agent'} source="rules">
               {w.detector ? (
                 <>
@@ -181,6 +194,13 @@ function WindowDetail({
                   {w.detection.reasoning}
                 </span>
                 {w.detection.note && <span className="text-xs text-muted">Fallback reason: {w.detection.note}</span>}
+                {w.detection.family_vote && (
+                  <span>
+                    Family from the incident memory: {w.detection.family_vote.family} ({w.detection.family_vote.votes} nearest agree,{' '}
+                    {w.detection.family_vote.group}) ·{' '}
+                    {w.detection.family_vote.neighbours.map((n) => `${n.family} [${n.source}, ${n.day}, ${n.distance}]`).join(' · ')}
+                  </span>
+                )}
                 {w.detection.attack_techniques && w.detection.attack_techniques.length > 0 && (
                   <span>
                     MITRE ATT&CK: <span className="font-mono text-xs text-fg">{w.detection.attack_techniques.join(' · ')}</span>
@@ -248,7 +268,7 @@ export function Incidents({
   canReview: boolean;
   selected: number | null;
   onSelect: (index: number) => void;
-  onReview: (index: number, decision: 'APPROVED' | 'REJECTED', note: string) => Promise<void>;
+  onReview: (index: number, decision: 'APPROVED' | 'REJECTED', note: string, family?: string) => Promise<void>;
 }) {
   // Responders land on their approval queue; everyone else starts from all windows.
   const [filter, setFilter] = useState<Filter>(role === 'responder' ? 'review' : 'all');
@@ -271,8 +291,9 @@ export function Incidents({
   ];
 
   return (
-    <div className="flex flex-wrap gap-5">
-      <div className="flex min-w-0 flex-[999_1_520px] flex-col gap-3">
+    // Wide screens: a compact window list that stays in view, and a wide detail panel.
+    <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(400px,5fr)_minmax(0,8fr)]">
+      <div className="flex min-w-0 flex-col gap-3 xl:sticky xl:top-20">
         <div className="flex flex-wrap gap-2" role="group" aria-label="Filter windows">
           {filters.map(([id, label]) => (
             <button key={id} type="button" aria-pressed={filter === id} onClick={() => setFilter(id)} className={`h-10 cursor-pointer rounded-full border px-4 text-sm ${filter === id ? 'border-signal bg-[#122631] text-fg' : 'border-line-strong text-soft hover:text-fg'}`}>
@@ -280,18 +301,18 @@ export function Incidents({
             </button>
           ))}
         </div>
-        <Panel bodyClassName="overflow-x-auto">
+        <Panel bodyClassName="overflow-x-auto xl:max-h-[calc(100vh-11rem)] xl:overflow-y-auto">
           {rows.length === 0 ? (
             <p className="m-0 p-5 text-sm text-muted">No windows match this filter.</p>
           ) : (
-            <table className="w-full min-w-[620px] border-collapse text-sm">
+            <table className="w-full min-w-[480px] border-collapse text-sm">
               <thead>
                 <tr className="text-left font-mono text-[11px] uppercase tracking-wider text-muted">
-                  <th className="px-5 py-3 font-medium">Window</th>
+                  <th className="px-4 py-3 font-medium">Window</th>
                   <th className="px-2 py-3 text-right font-medium">Score</th>
                   <th className="px-2 py-3 font-medium">Detection</th>
                   <th className="px-2 py-3 font-medium">Severity</th>
-                  <th className="px-5 py-3 font-medium">Governance</th>
+                  <th className="px-4 py-3 font-medium">Governance</th>
                 </tr>
               </thead>
               <tbody>
@@ -299,7 +320,7 @@ export function Incidents({
                   const on = current?.index === w.index;
                   return (
                     <tr key={w.index} className={`border-t border-line ${on ? 'bg-[#122631]' : ''}`}>
-                      <td className="px-5 py-2">
+                      <td className="px-4 py-2">
                         <button type="button" onClick={() => onSelect(w.index)} aria-current={on} className="cursor-pointer py-1.5 font-mono text-signal hover:underline">
                           W{w.index}
                         </button>
@@ -309,7 +330,7 @@ export function Incidents({
                         {w.detection ? (w.detection.threat ? <span className="font-semibold text-crit">{w.detection.attack_type}</span> : <span className="text-ok">Cleared</span>) : <span className="text-muted">Not needed</span>}
                       </td>
                       <td className="px-2 py-2"><SeverityBadge severity={w.risk?.severity} /></td>
-                      <td className="px-5 py-2"><DecisionBadge window={w} /></td>
+                      <td className="px-4 py-2"><DecisionBadge window={w} /></td>
                     </tr>
                   );
                 })}
@@ -319,8 +340,8 @@ export function Incidents({
         </Panel>
       </div>
       {current && (
-        <div className="min-w-0 flex-[1_1_400px]">
-          <WindowDetail window={current} canReview={canReview} onReview={(decision, note) => onReview(current.index, decision, note)} />
+        <div className="min-w-0">
+          <WindowDetail window={current} canReview={canReview} onReview={(decision, note, family) => onReview(current.index, decision, note, family)} />
         </div>
       )}
     </div>

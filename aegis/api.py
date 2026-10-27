@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from . import PROJECT_SUBTITLE, PROJECT_TITLE, auth, config, control, data
+from .agents import ATTACK_TYPES
 from .llm import make_llm
 from .runs import ReviewNotAllowed, RunBusy, RunNotFound, RunPaused, RunService, actor
 
@@ -36,6 +37,8 @@ class RunRequest(BaseModel):
 class ReviewRequest(BaseModel):
     decision: Literal["APPROVED", "REJECTED"]
     note: str = Field("", max_length=500)
+    # The analyst may correct the attack family; approved incidents teach the family vote.
+    family: Literal[tuple(ATTACK_TYPES)] | None = None
 
 
 class ControlRequest(BaseModel):
@@ -139,7 +142,7 @@ def create_app(service: RunService | None = None) -> FastAPI:
     @app.post("/api/runs/{run_id}/windows/{index}/review")
     def review(run_id: str, index: int, body: ReviewRequest, user: dict = Depends(require("review"))):
         try:
-            return runs.review(run_id, index, body.decision, user, body.note)
+            return runs.review(run_id, index, body.decision, user, body.note, body.family)
         except RunNotFound as error:
             raise HTTPException(404, "Run or window not found.") from error
         except ReviewNotAllowed as error:

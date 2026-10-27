@@ -1,7 +1,8 @@
 import json
 import unittest
 
-from aegis import audit, auth, config, control, data
+from aegis import audit, auth, config, control, data, family
+from aegis.family import FamilyVote
 from aegis.agents import governance_agent, monitoring_score, risk_agent
 from aegis.evaluation import confusion, expected_attack_type, mcnemar, wilson
 from aegis.graph import build_graph
@@ -162,12 +163,16 @@ class HybridTests(unittest.TestCase):
         window = {"index": 1, "features": GraphTests.features_attack, "detector": detector}
         return build_graph(llm).invoke({"window": window, "context": {}, "trace": []})
 
-    def test_detector_decides_and_llm_explains(self):
-        state = self.run_graph(FakeLLM(), self.detector)
+    def test_detector_decides_memory_names_and_llm_explains(self):
+        vote = {"family": "DDoS", "group": "Volumetric flood", "votes": "3/3", "agreement": 1.0,
+                "neighbours": [{"family": "DDoS", "source": "known incident", "day": "DDoS2", "distance": 0.4}] * 3}
+        llm = FakeLLM()
+        state = self.run_graph(llm, {**self.detector, "family_vote": vote})
         d = state["detection"]
         self.assertTrue(d["threat"])
-        self.assertEqual((d["source"], d["attack_type"], d["confidence"]), ("hybrid", "DDoS", 99))
+        self.assertEqual((d["source"], d["attack_type"], d["attack_group"], d["confidence"]), ("hybrid", "DDoS", "Volumetric flood", 99))
         self.assertIn("T1498 Network Denial of Service", d["attack_techniques"])
+        self.assertIn("Do NOT change the family", llm.prompts[0])
         self.assertEqual(state["monitoring"]["method"], "isolation-forest (benign-trained)")
 
     def test_normal_window_never_reaches_the_llm(self):
@@ -178,15 +183,32 @@ class HybridTests(unittest.TestCase):
 
     def test_llm_can_raise_but_not_lower_severity(self):
         low = {**self.detector, "confidence": 10, "score": 0.0}
-        raised = self.run_graph(FakeLLM(explanation={"attack_type": "Port Scan", "severity_hint": "CRITICAL", "explanation": "x"}), low)
+        raised = self.run_graph(FakeLLM(explanation={"severity_hint": "CRITICAL", "explanation": "x"}), low)
         self.assertEqual(raised["risk"]["severity"], "CRITICAL")
-        lowered = self.run_graph(FakeLLM(explanation={"attack_type": "DDoS", "severity_hint": "LOW", "explanation": "x"}), self.detector)
+        lowered = self.run_graph(FakeLLM(explanation={"severity_hint": "LOW", "explanation": "x"}), self.detector)
         self.assertEqual(lowered["risk"]["severity"], "CRITICAL")
 
     def test_without_llm_family_comes_from_similar_incidents(self):
         state = self.run_graph(FakeLLM(fail=True), self.detector)
         self.assertEqual((state["detection"]["source"], state["detection"]["attack_type"]), ("anomaly", "DoS"))
         self.assertEqual(state["governance"]["decision"], "PENDING_REVIEW")
+
+
+class FamilyTests(unittest.TestCase):
+    def setUp(self):
+        isolate(self)
+
+    def entry(self, fam, value):
+        return {"features": {"a": value, "b": value * 2}, "family": fam, "day": "d", "source": "known incident"}
+
+    def test_vote_takes_the_nearest_majority(self):
+        vote = FamilyVote([self.entry("DDoS", 0.0), self.entry("DDoS", 0.1), self.entry("DoS", 0.2),
+                           self.entry("Botnet", 5.0), self.entry("Botnet", 5.1)]).vote({"a": 0.05, "b": 0.1})
+        self.assertEqual((vote["family"], vote["votes"], vote["group"]), ("DDoS", "2/3", "Volumetric flood"))
+
+    def test_confirmed_incidents_join_the_memory(self):
+        family.confirm({"a": 1.0, "b": 2.0}, "Brute Force", "run1", 3, "user:ana")
+        self.assertEqual(family.confirmed()[0]["family"], "Brute Force")
 
 
 class AuditTests(unittest.TestCase):
@@ -291,6 +313,20 @@ class RunServiceTests(unittest.TestCase):
         self.assertEqual(run["windows"][0]["monitoring"]["method"], "isolation-forest (benign-trained)")
         self.assertIn("detector", run["windows"][0])
         self.assertIn("attack_typing", run["evaluation"])
+        flagged = [w for w in run["windows"] if w.get("detection")]
+        self.assertTrue(flagged)
+        self.assertIn("family_vote", flagged[0]["detection"])
+
+    def test_approved_review_teaches_the_incident_memory(self):
+        make_dataset(self.dir, name="other-day.parquet", seed=11)
+        service = self.service(FakeLLM())
+        run = service.start(self.dataset, windows=6, window_size=100, mode="hybrid", background=False)
+        pending = [w for w in run["windows"] if w["governance"]["decision"] == "PENDING_REVIEW"]
+        self.assertTrue(pending)
+        reviewed = service.review(run["id"], pending[0]["index"], "APPROVED", ANALYST, "Confirmed", family_name="DoS")
+        self.assertEqual((reviewed["review"]["family"], reviewed["review"]["family_corrected"]), ("DoS", reviewed["detection"]["attack_type"] != "DoS"))
+        memory = family.confirmed()
+        self.assertEqual((len(memory), memory[0]["family"], memory[0]["confirmed_by"]), (1, "DoS", "user:akshith"))
 
     def test_pause_blocks_new_runs(self):
         control.set_paused(True, "user:boss", "Investigating")

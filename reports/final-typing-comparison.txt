@@ -1,0 +1,13 @@
+139 caught attack windows present in every run (seeds [1, 2]): {'Botnet': 12, 'Brute Force': 13, 'DDoS': 93, 'DoS': 21}
+
+design               exact      answerable    coarse group  macro-F1
+old       0.50 [0.41,0.58]0.61 [0.51,0.69]0.73 [0.65,0.79]     0.212
+          mistakes: {'DDoS->DoS': 18, 'DoS->DDoS': 14, 'Brute Force->DoS': 13, 'Botnet->DDoS': 12, 'DDoS->Botnet': 10, 'DoS->Botnet': 3}
+new       0.55 [0.47,0.63]0.68 [0.58,0.75]0.82 [0.75,0.88]     0.288
+          mistakes: {'DDoS->DoS': 37, 'Brute Force->DoS': 13, 'Botnet->DDoS': 12}
+memory    0.97 [0.93,0.99]0.96 [0.91,0.99]1.00 [0.97,1.00]     0.973
+          mistakes: {'DDoS->DoS': 4}
+
+McNemar old vs new: only old right 18, only new right 26, p = 0.2912
+McNemar old vs memory: only old right 2, only memory right 68, p = 0.0
+McNemar new vs memory: only new right 1, only memory right 59, p = 0.0

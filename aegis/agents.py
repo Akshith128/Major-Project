@@ -14,6 +14,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, ValidationError
 
 from . import config
+from .family import GROUPS
 from .llm import LLM_SOURCES, LLMUnavailable
 
 ATTACK_TYPES = [
@@ -131,7 +132,7 @@ def _ask(llm, template: str, prompt: str, state, schema: type[BaseModel]):
     llm.last_meta = {}  # never let a previous call's metadata leak into this record
     started = time.perf_counter()
     try:
-        raw = llm.ask_json(prompt)
+        raw = llm.ask_json(prompt, schema=schema.model_json_schema())
         reply = schema.model_validate(raw)
         provenance["schema_valid"] = True
         return reply, provenance
@@ -221,7 +222,6 @@ class DetectionReply(BaseModel):
 
 
 class ExplanationReply(BaseModel):
-    attack_type: Literal[tuple(ATTACK_TYPES)]
     severity_hint: Literal[tuple(SEVERITIES)] | None = None
     explanation: str = Field(min_length=1, max_length=1200)
 
@@ -232,15 +232,25 @@ class ResponseReply(BaseModel):
 
 
 def _hybrid_detection(llm, state) -> dict:
-    """The detector has already decided this window is a threat; the LLM explains and types it."""
+    """The detector decided this is a threat and the incident memory named the family;
+    the language model only explains it (it added errors when it chose the family)."""
     detector = state["window"]["detector"]
-    similar = detector["similar_incidents"]
-    neighbours = "\n".join(f"- {n['family']} (day {n['day']}, distance {n['distance']})" for n in similar) or "- none"
+    vote = detector.get("family_vote")
+    if vote:
+        attack_type, neighbours = vote["family"], vote["neighbours"]
+    else:  # no memory available: nearest similar incidents from the detector
+        neighbours = detector["similar_incidents"]
+        families = [n["family"] for n in neighbours[:3]]
+        attack_type = max(set(families), key=families.count) if families else "Unknown"
+    listed = "\n".join(
+        f"- {n['family']} ({n.get('source', 'known incident')}, {n['day']}, distance {n['distance']})" for n in neighbours
+    ) or "- none"
     prompt = f"""You are the detection agent in an autonomous network defence system.
-A benign-trained anomaly detector has flagged this window of {state['window']['features']['flows']} network
-flows as abnormal (confidence {detector['confidence']}: it looks less normal than that share of known-normal windows).
-Your job is NOT to decide whether it is malicious. Name the most likely attack family, explain the evidence,
-and say whether the impact deserves a higher severity than usual.
+A benign-trained anomaly detector flagged this window of {state['window']['features']['flows']} network flows as
+abnormal (it looks less normal than {detector['confidence']}% of known-normal windows), and the incident memory
+matched it to known incidents of the family: {attack_type}.
+Do NOT change the family. Explain, for a security analyst, why this traffic fits {attack_type}, citing the features,
+and say whether its impact deserves a higher severity than usual.
 
 Traffic features (CICFlowMeter aggregates, no labels):
 {_features_json(state)}
@@ -248,40 +258,33 @@ Traffic features (CICFlowMeter aggregates, no labels):
 Features furthest from normal traffic:
 {chr(10).join('- ' + d for d in detector['deviations']) or '- none stand out individually'}
 
-Most similar known incidents from other days (smaller distance = more similar):
-{neighbours}
+Closest known incidents:
+{listed}
 
 How attack families usually look in these aggregates:
 {FAMILY_GUIDE}
 
 Reply with JSON only:
-{{"attack_type": one of {ATTACK_TYPES},
-  "severity_hint": one of {SEVERITIES} or null,
-  "explanation": "two or three sentences citing the features and similar incidents"}}"""
-    reply, provenance = _ask(llm, "explanation-v1", prompt, state, ExplanationReply)
+{{"severity_hint": one of {SEVERITIES} or null,
+  "explanation": "two or three sentences citing the features"}}"""
+    reply, provenance = _ask(llm, "explanation-v2", prompt, state, ExplanationReply)
     if reply is None:
-        # No explanation available: fall back to the nearest known incidents' family.
-        families = [n["family"] for n in similar[:3]]
-        attack_type = max(set(families), key=families.count) if families else "Unknown"
         detection = {
-            "attack_type": attack_type,
             "reasoning": f"Anomaly detector: {', '.join(detector['deviations']) or 'abnormal feature mix'}. "
-            f"Family taken from the nearest known incidents.",
+            f"Family from the closest known incidents ({vote['votes'] if vote else 'nearest'} agree).",
             "source": "anomaly",
             "note": provenance.get("error"),
         }
     else:
-        detection = {
-            "attack_type": reply.attack_type,
-            "reasoning": reply.explanation.strip(),
-            "severity_hint": reply.severity_hint,
-            "source": "hybrid",
-        }
+        detection = {"reasoning": reply.explanation.strip(), "severity_hint": reply.severity_hint, "source": "hybrid"}
     detection.update(
         threat=True,
+        attack_type=attack_type,
+        attack_group=GROUPS.get(attack_type, "Unknown"),
+        family_vote=vote,
         confidence=detector["confidence"],
         decided_by=detector["method"],
-        attack_techniques=ATTACK_TECHNIQUES.get(detection["attack_type"], []),
+        attack_techniques=ATTACK_TECHNIQUES.get(attack_type, []),
     )
     if llm.provider != "rules":
         detection["provenance"] = provenance

@@ -64,6 +64,17 @@ export interface Provenance {
   error?: string;
 }
 
+export const ATTACK_FAMILIES = ['DDoS', 'DoS', 'Brute Force', 'Botnet', 'Web Attack', 'Infiltration', 'Port Scan', 'Unknown'] as const;
+
+/** How the incident memory named the family: a vote of the nearest known incidents. */
+export interface FamilyVote {
+  family: string;
+  group: string;
+  votes: string;
+  agreement: number;
+  neighbours: { family: string; source: string; day: string; distance: number }[];
+}
+
 /** Benign-trained anomaly detector's verdict and evidence for one window (hybrid mode). */
 export interface DetectorEvidence {
   method: string;
@@ -93,13 +104,24 @@ export interface WindowResult {
     provenance?: Provenance;
     severity_hint?: Severity | null;
     attack_techniques?: string[];
+    attack_group?: string;
+    family_vote?: FamilyVote | null;
     decided_by?: string;
   };
   risk?: { score: number; severity: Severity; factors: string[] };
   response?: { actions: string[]; rationale: string; source: string; execution: string; note?: string; provenance?: Provenance };
   governance: { decision: GovernanceDecision; reasons: string[]; policy: string };
   trace: string[];
-  review: { decision: 'APPROVED' | 'REJECTED'; operator: string; username?: string; role?: Role; note: string; at: string } | null;
+  review: {
+    decision: 'APPROVED' | 'REJECTED';
+    operator: string;
+    username?: string;
+    role?: Role;
+    note: string;
+    at: string;
+    family?: string | null;
+    family_corrected?: boolean;
+  } | null;
   truth: { label_counts: Record<string, number>; dominant_label: string; attack_share: number; is_attack: boolean };
   baselines?: {
     random_forest?: { attack: boolean; attack_share: number };
@@ -284,10 +306,10 @@ export const api = {
   run: (id: string) => request<Run>(`/api/runs/${encodeURIComponent(id)}`),
   startRun: (body: RunConfig) =>
     request<{ id: string; status: RunStatus }>('/api/runs', { method: 'POST', body: JSON.stringify(body) }),
-  review: (id: string, index: number, decision: 'APPROVED' | 'REJECTED', note: string) =>
+  review: (id: string, index: number, decision: 'APPROVED' | 'REJECTED', note: string, family?: string) =>
     request<WindowResult>(`/api/runs/${encodeURIComponent(id)}/windows/${index}/review`, {
       method: 'POST',
-      body: JSON.stringify({ decision, note }),
+      body: JSON.stringify({ decision, note, ...(family ? { family } : {}) }),
     }),
   verifyAudit: (id: string) => request<AuditCheck>(`/api/runs/${encodeURIComponent(id)}/audit/verify`),
 };

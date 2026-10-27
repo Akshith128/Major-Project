@@ -20,6 +20,7 @@ import { Overview } from './components/Overview';
 import { Incidents } from './components/Incidents';
 import { Governance } from './components/Governance';
 import { Agents } from './components/Agents';
+import { Walkthrough } from './components/Walkthrough';
 import { Kicker, ShieldMark } from './components/ui';
 
 const PROJECT_TITLE = 'Agentic AI for Autonomous Threat Detection and Response';
@@ -113,9 +114,9 @@ export default function App() {
     setRuns(await api.runs());
   };
 
-  const review = async (index: number, decision: 'APPROVED' | 'REJECTED', note: string) => {
+  const review = async (index: number, decision: 'APPROVED' | 'REJECTED', note: string, family?: string) => {
     if (!run) return;
-    await api.review(run.id, index, decision, note);
+    await api.review(run.id, index, decision, note, family);
     setRun(await api.run(run.id));
   };
 
@@ -131,7 +132,7 @@ export default function App() {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-20 border-b border-line bg-ink-raised/95 backdrop-blur">
-        <div className="mx-auto flex max-w-[1320px] flex-wrap items-center gap-x-7 gap-y-3 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-[1760px] flex-wrap items-center gap-x-7 gap-y-3 px-4 py-3 sm:px-6">
           <button type="button" onClick={() => setPage(role.landing)} className="flex cursor-pointer items-center gap-2.5" aria-label="AEGIS home">
             <ShieldMark />
             <span className="font-mono font-bold tracking-[0.28em]">AEGIS</span>
@@ -180,7 +181,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-[1320px] flex-1 flex-col gap-7 px-4 pt-8 pb-16 sm:px-6">
+      <main className="mx-auto flex w-full max-w-[1760px] flex-1 flex-col gap-7 px-4 pt-8 pb-16 sm:px-6">
         <section className="flex flex-wrap items-end justify-between gap-5">
           <div className="flex min-w-0 flex-[1_1_520px] flex-col gap-2">
             <Kicker className="text-signal">
@@ -240,10 +241,11 @@ export default function App() {
           <Governance run={run} control={control} canControl={can(account, 'control')} onPause={setPaused} onOpen={inspect} />
         )}
         {page === 'agents' && <Agents run={run} />}
+        {page === 'walkthrough' && <Walkthrough run={run} />}
       </main>
 
       <footer className="border-t border-line">
-        <div className="mx-auto flex max-w-[1320px] flex-wrap justify-between gap-2.5 px-4 py-5 text-sm text-muted sm:px-6">
+        <div className="mx-auto flex max-w-[1760px] flex-wrap justify-between gap-2.5 px-4 py-5 text-sm text-muted sm:px-6">
           <span>AEGIS · {PROJECT_TITLE}: {PROJECT_SUBTITLE}</span>
           <span className="font-mono">LangGraph · {providerName(health?.llm.provider)} · FastAPI · CIC-IDS2018</span>
         </div>

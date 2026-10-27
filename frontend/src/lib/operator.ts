@@ -8,7 +8,7 @@ import type { Account, Permission, Role, Session } from '../api';
 
 export type OperatorRole = Role;
 
-export type ConsolePage = 'overview' | 'incidents' | 'governance' | 'agents';
+export type ConsolePage = 'overview' | 'walkthrough' | 'incidents' | 'governance' | 'agents';
 
 export interface RoleSpec {
   id: OperatorRole;
@@ -51,6 +51,7 @@ export const ROLES: RoleSpec[] = [
 
 export const PAGES: { id: ConsolePage; label: string }[] = [
   { id: 'overview', label: 'Overview' },
+  { id: 'walkthrough', label: 'How it works' },
   { id: 'incidents', label: 'Incidents' },
   { id: 'governance', label: 'Governance' },
   { id: 'agents', label: 'Agents' },

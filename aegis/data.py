@@ -60,7 +60,7 @@ DATASET_NOTES = {
         "caution": "DoS-SlowHTTPTest never succeeded (55 flows here); DoS-Hulk is the usable attack.",
     },
     "DoS1": {"exclude": False, "caution": "About a quarter of GoldenEye flows are CICFlowMeter artefacts."},
-    "DDoS2": {"exclude": False, "caution": "LOIC-UDP flows are mislabelled as HTTP in the original release."},
+    "DDoS1": {"exclude": False, "caution": "LOIC-UDP flows on 20-02 are mislabelled as LOIC-HTTP in the original release."},
 }
 
 
@@ -104,7 +104,7 @@ def list_datasets() -> list[dict]:
     return out
 
 
-@lru_cache(maxsize=2)
+@lru_cache(maxsize=12)
 def _frame(dataset_id: str) -> pd.DataFrame:
     df = pd.read_parquet(_path(dataset_id), columns=COLUMNS)
     df["Label"] = df["Label"].astype(str).str.strip()

@@ -50,3 +50,34 @@
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
+
+/* --- Pipeline walkthrough animations ------------------------------------- */
+@keyframes aegis-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes aegis-fill {
+  from { width: 0; }
+}
+@keyframes aegis-travel {
+  from { left: 0; }
+  to { left: calc(100% - 10px); }
+}
+@keyframes aegis-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(56 214 245 / 0.55); }
+  50% { box-shadow: 0 0 0 8px rgb(56 214 245 / 0); }
+}
+@keyframes aegis-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  70% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); }
+}
+.aegis-fade-up { animation: aegis-fade-up 0.45s ease-out both; }
+.aegis-fill { animation: aegis-fill 0.9s ease-out both; }
+.aegis-travel { animation: aegis-travel 0.8s ease-in-out both; }
+.aegis-pulse { animation: aegis-pulse 1.4s ease-in-out infinite; }
+.aegis-pop { animation: aegis-pop 0.4s ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .aegis-fade-up, .aegis-fill, .aegis-travel, .aegis-pulse, .aegis-pop { animation: none; }
+}

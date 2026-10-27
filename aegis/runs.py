@@ -8,7 +8,7 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import anomaly, audit, baselines, config, control, data
+from . import anomaly, audit, baselines, config, control, data, family
 from .evaluation import evaluate
 from .graph import build_graph
 from .llm import NoLLM, make_llm
@@ -219,8 +219,15 @@ class RunService:
                 evidence, run["detector"] = anomaly.score(
                     run["config"]["dataset_id"], loaded, run["config"]["window_size"], run["config"]["detector_baseline"]
                 )
+                voter = family.voter(run["config"]["dataset_id"], run["config"]["window_size"])
                 for window, ev in zip(loaded, evidence):
+                    if ev["anomalous"]:
+                        ev["family_vote"] = voter.vote(window["features"])
                     window["detector"] = ev
+                run["detector"]["incident_memory"] = {
+                    "known_incidents": len(voter.entries) - len(family.confirmed()),
+                    "confirmed_incidents": len(family.confirmed()),
+                }
             if self._baselines:
                 per_window, run["baselines"] = baseline_verdicts(run["config"]["dataset_id"], loaded)
                 for window in loaded:
@@ -268,7 +275,7 @@ class RunService:
 
     # --- human-in-the-loop -----------------------------------------------------
 
-    def review(self, run_id: str, index: int, decision: str, user: dict, note: str = "") -> dict:
+    def review(self, run_id: str, index: int, decision: str, user: dict, note: str = "", family_name: str | None = None) -> dict:
         run = self.get(run_id)
         window = next((w for w in run["windows"] if w["index"] == index), None)
         if window is None:
@@ -277,8 +284,12 @@ class RunService:
             raise ReviewNotAllowed("Decision must be APPROVED or REJECTED.")
         if window["governance"]["decision"] != "PENDING_REVIEW" or window["review"]:
             raise ReviewNotAllowed("This window is not awaiting review.")
+        named = window.get("detection", {}).get("attack_type")
+        confirmed_family = family_name or named
         window["review"] = {
             "decision": decision,
+            "family": confirmed_family,
+            "family_corrected": bool(family_name and family_name != named),
             "operator": user["name"],
             "username": user["username"],
             "role": user["role"],
@@ -289,8 +300,16 @@ class RunService:
             run,
             actor(user),
             f"RESPONSE_{decision}",
-            {"window": index, "note": note, "actions": window.get("response", {}).get("actions", [])},
+            {
+                "window": index,
+                "note": note,
+                "family": confirmed_family,
+                "actions": window.get("response", {}).get("actions", []),
+            },
         )
+        # An approved incident becomes memory: later windows like it get the same family.
+        if decision == "APPROVED" and confirmed_family and confirmed_family != "Unknown":
+            family.confirm(window["features"], confirmed_family, run_id, index, actor(user))
         if run["summary"]:
             run["summary"] = summarize(run["windows"])
         if run["evaluation"]:

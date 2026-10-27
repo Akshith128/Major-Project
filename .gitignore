@@ -15,3 +15,8 @@ data/users.json
 data/control.json
 reports/benchmark-*
 data/demo-login.txt
+data/incident_memory.jsonl
+reports/final-*.json
+reports/final-*.log
+reports/final-*.md
+!reports/final-typing-comparison.txt
