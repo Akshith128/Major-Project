@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
-import type { Run } from '../api';
+import { LLM_SOURCES, type Run } from '../api';
 import { Kicker, Panel, Stat } from './ui';
 
 const AGENTS = [
@@ -14,7 +14,7 @@ const AGENTS = [
   {
     id: 'detection',
     name: 'Detection agent',
-    kind: 'Gemini · rule fallback',
+    kind: 'Reasoning model · rule fallback',
     role: 'Reads the label-free traffic features and decides whether the window is malicious, which attack family it is and how confident it is.',
     output: 'threat, attack_type, confidence, reasoning',
   },
@@ -28,7 +28,7 @@ const AGENTS = [
   {
     id: 'response',
     name: 'Response agent',
-    kind: 'Gemini · playbook fallback',
+    kind: 'Reasoning model · playbook fallback',
     role: 'Recommends concrete containment actions adapted to the traffic, starting from a standard playbook for the attack family.',
     output: 'actions, rationale (recommended, not executed)',
   },
@@ -50,7 +50,7 @@ export function Agents({ run }: { run: Run | null }) {
   const route = windows.find((w) => w.index === traced) ?? null;
   const detected = windows.filter((w) => w.detection);
   const threats = detected.filter((w) => w.detection?.threat);
-  const viaGemini = detected.filter((w) => w.detection?.source === 'gemini').length;
+  const viaLlm = detected.filter((w) => LLM_SOURCES.includes(w.detection?.source ?? '')).length;
   const severe = threats.filter((w) => w.risk?.severity === 'HIGH' || w.risk?.severity === 'CRITICAL').length;
 
   return (
@@ -108,7 +108,7 @@ export function Agents({ run }: { run: Run | null }) {
       {run && windows.length > 0 && (
         <section aria-label="Routing" className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
           <Stat label="Clean → governance" value={windows.length - detected.length} note="Below the monitoring gate" tone="text-signal" />
-          <Stat label="Cleared by detection" value={detected.length - threats.length} note={`${viaGemini} Gemini · ${detected.length - viaGemini} rules`} tone="text-warn" />
+          <Stat label="Cleared by detection" value={detected.length - threats.length} note={`${viaLlm} reasoning model · ${detected.length - viaLlm} rules`} tone="text-warn" />
           <Stat label="Full pipeline" value={threats.length} note="Risk + response + governance" tone="text-crit" />
           <Stat label="High / critical" value={severe} note={`${threats.length - severe} medium or low`} />
         </section>

@@ -18,7 +18,7 @@ def main() -> None:
     parser.add_argument("--window-size", type=int, default=100)
     parser.add_argument("--sampling", choices=["spread", "sequential"], default="spread")
     parser.add_argument("--start-row", type=int, default=0)
-    parser.add_argument("--mode", choices=["auto", "gemini", "rules", "hybrid"], default="auto")
+    parser.add_argument("--mode", choices=["auto", "llm", "gemini", "rules", "hybrid"], default="auto")
     parser.add_argument("--operator", default="CLI")
     parser.add_argument("--seed", type=int, default=None, help="jitter spread windows for repeat runs")
     args = parser.parse_args()

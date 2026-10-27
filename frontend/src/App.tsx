@@ -3,6 +3,7 @@ import { AlertTriangle, LogOut, OctagonPause } from 'lucide-react';
 import {
   api,
   datasetLabel,
+  providerName,
   onSessionExpired,
   type Account,
   type ControlState,
@@ -161,7 +162,13 @@ export default function App() {
           <div className="ml-auto flex items-center gap-3">
             <span className={`hidden items-center gap-2 font-mono text-xs sm:flex ${apiError ? 'text-warn' : 'text-ok'}`}>
               <span className={`h-2 w-2 rounded-full ${apiError ? 'bg-warn' : 'bg-ok'}`} aria-hidden="true" />
-              {apiError ? 'API OFFLINE' : control?.paused ? 'PAUSED' : health?.gemini.configured ? 'GEMINI ONLINE' : 'RULES MODE'}
+              {apiError
+                ? 'API OFFLINE'
+                : control?.paused
+                  ? 'PAUSED'
+                  : health?.llm.configured
+                    ? `${providerName(health.llm.provider).toUpperCase()} ONLINE`
+                    : 'RULES MODE'}
             </span>
             <div className="flex h-10 w-10 items-center justify-center rounded-full border border-signal bg-panel-2 text-sm font-bold" title={`${operatorName} (${account.username}) · ${role.label}`}>
               {initialsOf(account.name)}
@@ -238,7 +245,7 @@ export default function App() {
       <footer className="border-t border-line">
         <div className="mx-auto flex max-w-[1320px] flex-wrap justify-between gap-2.5 px-4 py-5 text-sm text-muted sm:px-6">
           <span>AEGIS · {PROJECT_TITLE}: {PROJECT_SUBTITLE}</span>
-          <span className="font-mono">LangGraph · Gemini · FastAPI · CIC-IDS2018</span>
+          <span className="font-mono">LangGraph · {providerName(health?.llm.provider)} · FastAPI · CIC-IDS2018</span>
         </div>
       </footer>
     </div>

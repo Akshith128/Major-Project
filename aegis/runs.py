@@ -11,7 +11,7 @@ from pathlib import Path
 from . import anomaly, audit, baselines, config, control, data
 from .evaluation import evaluate
 from .graph import build_graph
-from .llm import GeminiLLM, NoLLM
+from .llm import NoLLM, make_llm
 
 SYSTEM_ACTOR = "aegis:governance"
 DEFAULT_USER = {"username": "cli", "name": "CLI", "role": "analyst"}
@@ -99,7 +99,7 @@ class RunService:
     def __init__(self, runs_dir: Path | None = None, llm_factory=None, baselines_enabled: bool = True):
         self.runs_dir = Path(runs_dir or config.RUNS_DIR)
         self.runs_dir.mkdir(parents=True, exist_ok=True)
-        self._llm_factory = llm_factory or (lambda mode: NoLLM() if mode == "rules" else GeminiLLM())
+        self._llm_factory = llm_factory or (lambda mode: NoLLM() if mode == "rules" else make_llm())
         self._baselines = baselines_enabled
         self._lock = threading.Lock()
         self._active: str | None = None
@@ -150,11 +150,13 @@ class RunService:
         user = user or DEFAULT_USER
         if control.is_paused():
             raise RunPaused("AEGIS is paused by a security manager. Resume it before starting a run.")
-        if mode not in ("auto", "gemini", "rules", "hybrid"):
+        if mode == "gemini":  # older name for "the reasoning model decides"
+            mode = "llm"
+        if mode not in ("auto", "llm", "rules", "hybrid"):
             raise ValueError(f"Unknown mode: {mode}")
         llm = self._llm_factory(mode)
-        if not llm.configured and mode == "gemini":
-            raise ValueError("Gemini mode needs GOOGLE_API_KEY in .env.")
+        if not llm.configured and mode == "llm":
+            raise ValueError(f"LLM mode needs a working reasoning model: {getattr(llm, 'note', None) or 'not configured'}")
         if not llm.configured:
             llm = NoLLM()
         if detector_baseline not in anomaly.BASELINES:

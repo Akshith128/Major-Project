@@ -119,12 +119,17 @@ data/raw/       CIC-IDS2018 parquet files (not in git)
 py -3.12 -m venv .venv
 .venv\Scripts\python.exe -m pip install -r requirements.txt
 npm.cmd --prefix frontend install
-Copy-Item .env.example .env   # then put your Gemini key in GOOGLE_API_KEY
+Copy-Item .env.example .env   # choose the reasoning model (AEGIS_LLM_PROVIDER)
 ```
 
 Place the CIC-IDS2018 parquet files (e.g.
 `DDoS1-Tuesday-20-02-2018_TrafficForML_CICFlowMeter.parquet`) in `data\raw\`.
-Without a Gemini key everything still runs in rules-only mode.
+**Reasoning model.** The default is a free local model through
+[Ollama](https://ollama.com): no quota, no cost, and no traffic data leaves the
+machine. Install Ollama, then run `ollama pull qwen2.5:3b`. Alternatively set
+`AEGIS_LLM_PROVIDER=groq` with a `GROQ_API_KEY` (hosted free tier, rate limited)
+or `gemini` with a `GOOGLE_API_KEY`. Without any model everything still runs:
+rules mode, and hybrid mode with detector-only explanations.
 
 Create at least one operator account (you are asked for a password):
 
@@ -156,8 +161,9 @@ Command line only:
 .venv\Scripts\python.exe main.py --dataset DDoS1-Tuesday-20-02-2018_TrafficForML_CICFlowMeter.parquet --windows 12 --mode rules
 ```
 
-`--mode auto` (default) uses Gemini when a key is set, `gemini` requires it,
-`rules` never calls it, `hybrid` lets the anomaly detector decide and Gemini explain.
+`--mode auto` (default) uses the reasoning model when it is available, `llm`
+requires it, `rules` never calls it, `hybrid` lets the anomaly detector decide and
+the reasoning model explain.
 
 ## Tests
 

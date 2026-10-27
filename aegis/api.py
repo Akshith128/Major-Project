@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from . import PROJECT_SUBTITLE, PROJECT_TITLE, auth, config, control, data
-from .llm import GeminiLLM
+from .llm import make_llm
 from .runs import ReviewNotAllowed, RunBusy, RunNotFound, RunPaused, RunService, actor
 
 
@@ -28,7 +28,7 @@ class RunRequest(BaseModel):
     window_size: int = Field(100, ge=10, le=5000)
     sampling: Literal["spread", "sequential"] = "spread"
     start_row: int = Field(0, ge=0)
-    mode: Literal["auto", "gemini", "rules", "hybrid"] = "auto"
+    mode: Literal["auto", "llm", "gemini", "rules", "hybrid"] = "auto"
     seed: int | None = Field(None, ge=0)
     detector_baseline: Literal["same-network", "cross-day"] = "same-network"
 
@@ -74,11 +74,17 @@ def create_app(service: RunService | None = None) -> FastAPI:
 
     @app.get("/api/health")
     def health():
-        llm = GeminiLLM()
+        llm = make_llm()
         return {
             "status": "ok",
             "project": PROJECT_TITLE,
-            "gemini": {"configured": llm.configured, "model": llm.model},
+            "llm": {
+                "provider": llm.provider,
+                "configured": llm.configured,
+                "model": llm.model,
+                "local": llm.local,
+                "note": llm.note,
+            },
             "datasets": len(data.list_datasets()),
             "accounts": bool(auth.load_users()),
             "paused": control.is_paused(),

@@ -1,7 +1,7 @@
 """Multi-day benchmark: the evaluation a single 10-window run cannot give.
 
     python -m aegis.benchmark                              # rules mode, 50 windows x every usable day-file x 3 seeds
-    python -m aegis.benchmark --mode gemini --seeds 1 --repeats 3   # LLM variance on identical windows
+    python -m aegis.benchmark --mode llm --seeds 1 --repeats 3      # LLM variance on identical windows
     python -m aegis.benchmark --ablate-tcp-window          # does detection lean on the TCP-window shortcut?
     python -m aegis.benchmark --label-threshold 0.1        # sensitivity to the window-labelling rule
 
@@ -28,7 +28,7 @@ from statistics import mean, stdev
 from . import anomaly, config, data
 from .evaluation import confusion, dominant_attack_label, evaluate
 from .graph import build_graph
-from .llm import GeminiLLM, NoLLM
+from .llm import NoLLM, make_llm
 from .runs import analyse_window, baseline_verdicts
 
 DETECTORS = {
@@ -50,9 +50,11 @@ def _verdicts(windows: list[dict]) -> dict:
 
 
 def run(args) -> dict:
-    llm = NoLLM() if args.mode == "rules" or args.no_llm else GeminiLLM()
-    if args.mode == "gemini" and not llm.configured:
-        raise SystemExit("Gemini mode needs GOOGLE_API_KEY in .env.")
+    if args.mode == "gemini":
+        args.mode = "llm"
+    llm = NoLLM() if args.mode == "rules" or args.no_llm else make_llm(args.provider)
+    if args.mode == "llm" and not llm.configured:
+        raise SystemExit(f"LLM mode needs a working reasoning model: {llm.note}")
     if not llm.configured:
         llm = NoLLM()
     graph = build_graph(llm)
@@ -232,7 +234,7 @@ def markdown(report: dict) -> str:
         "## Monitoring score, calibration, governance and cost",
         "",
         f"- Monitoring score ROC-AUC {_fmt(auc.get('roc_auc'))}, PR-AUC {_fmt(auc.get('pr_auc'))}.",
-        f"- LLM confidence calibration: {cal.get('n', 0)} Gemini decisions, ECE {_fmt(cal.get('ece'))}, Brier {_fmt(cal.get('brier'))}; "
+        f"- LLM confidence calibration: {cal.get('n', 0)} LLM decisions, ECE {_fmt(cal.get('ece'))}, Brier {_fmt(cal.get('brier'))}; "
         f"accuracy at confidence ≥80: {_fmt(cal.get('accuracy_conf_ge_80'))}, below 80: {_fmt(cal.get('accuracy_conf_lt_80'))}.",
         f"- Attack typing: {typing.get('correct', 0)}/{typing.get('n', 0)} caught attacks named correctly "
         f"({_fmt(typing.get('accuracy'))}); mistakes: {typing.get('confusions') or 'none'}.",
@@ -257,10 +259,12 @@ def main() -> None:
     parser.add_argument("--window-size", type=int, default=100)
     parser.add_argument("--seeds", type=int, default=3)
     parser.add_argument("--repeats", type=int, default=1, help="LLM repeats on identical windows")
-    parser.add_argument("--mode", choices=["auto", "gemini", "rules", "hybrid"], default="rules")
+    parser.add_argument("--mode", choices=["auto", "llm", "gemini", "rules", "hybrid"], default="rules")
+    parser.add_argument("--provider", choices=["ollama", "groq", "gemini"], default=None,
+                        help="reasoning model (default: AEGIS_LLM_PROVIDER)")
     parser.add_argument("--baseline", choices=list(anomaly.BASELINES), default="same-network",
                         help="hybrid: how the anomaly detector learns normal traffic")
-    parser.add_argument("--no-llm", action="store_true", help="hybrid without Gemini (detector-only, no API cost)")
+    parser.add_argument("--no-llm", action="store_true", help="hybrid without a reasoning model (detector-only)")
     parser.add_argument("--label-threshold", type=float, default=0.5)
     parser.add_argument("--ablate-tcp-window", action="store_true")
     parser.add_argument("--include-infiltration", action="store_true")

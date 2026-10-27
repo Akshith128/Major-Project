@@ -101,8 +101,15 @@ export function Stat({
 
 export function SourceTag({ source }: { source?: string }) {
   if (!source) return null;
-  const ai = source === 'gemini' || source === 'hybrid';
-  const labels: Record<string, string> = { gemini: 'Gemini', hybrid: 'Detector + Gemini', anomaly: 'Detector only', playbook: 'Playbook' };
+  const ai = ['ollama', 'groq', 'gemini', 'hybrid'].includes(source);
+  const labels: Record<string, string> = {
+    ollama: 'Ollama',
+    groq: 'Groq',
+    gemini: 'Gemini',
+    hybrid: 'Detector + LLM',
+    anomaly: 'Detector only',
+    playbook: 'Playbook',
+  };
   return <span className={`font-mono text-[11px] uppercase tracking-wider ${ai ? 'text-signal' : 'text-muted'}`}>{labels[source] ?? 'Rules'}</span>;
 }
 

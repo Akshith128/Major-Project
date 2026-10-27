@@ -23,13 +23,24 @@ AUTH_SECRET = os.getenv("AEGIS_AUTH_SECRET")  # else generated once in SECRETS_D
 CHECKPOINT_FILE = Path(os.getenv("AEGIS_CHECKPOINT_FILE", SECRETS_DIR / "audit_checkpoints.jsonl"))
 SESSION_HOURS = 12
 
+# Which reasoning model the agents use: "ollama" (local, free, no quota),
+# "groq" (hosted free tier) or "gemini".
+LLM_PROVIDER = os.getenv("AEGIS_LLM_PROVIDER", "ollama").strip().lower()
+LLM_TEMPERATURE = 0.0
+
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
+OLLAMA_MODEL = os.getenv("AEGIS_OLLAMA_MODEL", "qwen2.5:3b")
+
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_MODEL = os.getenv("AEGIS_GROQ_MODEL", "llama-3.1-8b-instant")
+
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL = os.getenv("AEGIS_MODEL", "gemini-3.5-flash-lite")
-GEMINI_TEMPERATURE = 0.0
+GEMINI_TEMPERATURE = LLM_TEMPERATURE
 
 # Monitoring gate: windows scoring at or above this go to the detection agent.
 MONITORING_THRESHOLD = 0.6
-# Rule-based detector (used when Gemini is off): stricter than the gate.
+# Rule-based detector (used when no reasoning model is available): stricter than the gate.
 RULES_DETECTION_THRESHOLD = 0.75
 # Governance: responses below this detector confidence need an analyst.
 AUTO_APPROVE_MIN_CONFIDENCE = 80

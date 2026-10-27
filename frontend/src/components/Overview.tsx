@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { AlertTriangle, Play } from 'lucide-react';
-import { datasetLabel, type Account, type Dataset, type Health, type Run, type RunConfig, type RunMode } from '../api';
+import { datasetLabel, providerName, type Account, type Dataset, type Health, type Run, type RunConfig, type RunMode } from '../api';
 import { can } from '../lib/operator';
 import { DecisionBadge, EmptyState, Panel, SeverityBadge, Stat } from './ui';
 
@@ -16,14 +16,14 @@ function validate(c: RunConfig): string | null {
   return null;
 }
 
-const MODES: { id: RunMode; label: string; title: (gemini: boolean) => string }[] = [
-  { id: 'auto', label: 'Auto', title: (g) => (g ? 'Gemini, with rule fallback' : 'Rules (Gemini not configured)') },
-  { id: 'gemini', label: 'Gemini', title: (g) => (g ? 'Force Gemini reasoning' : 'Needs GOOGLE_API_KEY in .env') },
+const MODES: { id: RunMode; label: string; title: (llm: boolean) => string }[] = [
+  { id: 'auto', label: 'Auto', title: (g) => (g ? 'Reasoning model, with rule fallback' : 'Rules (no reasoning model available)') },
+  { id: 'llm', label: 'LLM', title: (g) => (g ? 'Force the reasoning model to decide' : 'No reasoning model available') },
   { id: 'rules', label: 'Rules', title: () => 'Deterministic thresholds only' },
   {
     id: 'hybrid',
     label: 'Hybrid',
-    title: (g) => (g ? 'Anomaly detector decides; Gemini explains, types and plans' : 'Anomaly detector decides; no Gemini, so explanations fall back'),
+    title: (g) => (g ? 'Anomaly detector decides; the reasoning model explains and plans' : 'Anomaly detector decides; no reasoning model, so explanations fall back'),
   },
 ];
 
@@ -61,10 +61,11 @@ function NewRunForm({
   }, [datasets, config.dataset_id]);
   const chosen = datasets.find((d) => d.dataset_id === config.dataset_id);
 
-  const gemini = !!health?.gemini.configured;
+  const llmReady = !!health?.llm.configured;
+  const model = health ? `${providerName(health.llm.provider)} · ${health.llm.model}` : 'reasoning model';
   useEffect(() => {
-    if (!gemini && config.mode === 'gemini') set('mode', 'auto');
-  }, [gemini, config.mode]);
+    if (!llmReady && config.mode === 'llm') set('mode', 'auto');
+  }, [llmReady, config.mode]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -80,17 +81,17 @@ function NewRunForm({
     }
   };
 
-  const usesGemini = config.mode === 'gemini' || (config.mode === 'auto' && gemini);
+  const usesLlm = config.mode === 'llm' || (config.mode === 'auto' && llmReady);
   const plan =
     `${config.windows || 0} windows × ${config.window_size || 0} flows` +
     (config.dataset_id ? ` from ${datasetLabel(config.dataset_id)}` : '') +
     `, ${config.sampling === 'spread' ? 'spread across the capture' : `sequential from row ${config.start_row}`}` +
     (config.mode === 'hybrid'
-      ? ` · a benign-trained anomaly detector decides (5% false-alarm budget); ${gemini ? 'Gemini explains, maps to ATT&CK and plans' : 'no Gemini key, so families come from similar past incidents'}`
-      : ` · detection by ${usesGemini ? 'Gemini (rule fallback on error)' : 'rules (score ≥ 0.75)'}`);
+      ? ` · a benign-trained anomaly detector decides (5% false-alarm budget); ${llmReady ? `${providerName(health?.llm.provider)} explains, maps to ATT&CK and plans` : 'no reasoning model, so families come from similar past incidents'}`
+      : ` · detection by ${usesLlm ? `${providerName(health?.llm.provider)} (rule fallback on error)` : 'rules (score ≥ 0.75)'}`);
 
   return (
-    <Panel title="Start a monitoring run" meta={gemini ? `Gemini · ${health?.gemini.model}` : 'Gemini not configured · rules only'}>
+    <Panel title="Start a monitoring run" meta={llmReady ? `${model}${health?.llm.local ? ' · runs locally' : ''}` : health?.llm.note ?? 'No reasoning model · rules only'}>
       <form onSubmit={submit} noValidate className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-[2fr_repeat(4,minmax(0,1fr))_auto] lg:items-end">
         <label className={labelClass}>
           Dataset (CIC-IDS2018)
@@ -129,8 +130,8 @@ function NewRunForm({
                   key={m.id}
                   type="button"
                   aria-pressed={on}
-                  disabled={m.id === 'gemini' && !gemini}
-                  title={m.title(gemini)}
+                  disabled={m.id === 'llm' && !llmReady}
+                  title={m.title(llmReady)}
                   onClick={() => set('mode', m.id)}
                   className={`flex-1 cursor-pointer text-[13px] font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${on ? 'bg-signal text-signal-ink' : 'bg-ink text-soft hover:text-fg'}`}
                 >

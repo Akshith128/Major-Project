@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Check, X } from 'lucide-react';
-import type { Provenance, Run, WindowResult } from '../api';
+import { LLM_SOURCES, type Provenance, type Run, type WindowResult } from '../api';
 import type { OperatorRole } from '../lib/operator';
 import { DecisionBadge, EmptyState, Kicker, Panel, SeverityBadge, SourceTag } from './ui';
 
@@ -173,7 +173,7 @@ function WindowDetail({
                   {w.detection.threat ? `Threat: ${w.detection.attack_type}` : 'No threat'} · confidence {w.detection.confidence}
                 </span>
                 <span>
-                  {w.detection.source === 'gemini' && (
+                  {(LLM_SOURCES.includes(w.detection.source) || w.detection.source === 'hybrid') && (
                     <span className="mr-2 rounded border border-line-strong px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted">
                       Model rationale · not verified
                     </span>

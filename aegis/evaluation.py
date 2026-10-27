@@ -123,10 +123,10 @@ def calibration(windows: list[dict], bins: int = 5) -> dict:
     rows = [
         (w["detection"]["confidence"] / 100, w["detection"]["threat"] == w["truth"]["is_attack"])
         for w in windows
-        if w.get("detection", {}).get("source") == "gemini"
+        if w.get("detection", {}).get("source") in ("ollama", "groq", "gemini")
     ]
     if not rows:
-        return {"n": 0, "note": "No Gemini decisions in this set."}
+        return {"n": 0, "note": "No reasoning-model decisions in this set."}
     conf = np.array([c for c, _ in rows])
     correct = np.array([k for _, k in rows], float)
     edges = np.linspace(0, 1, bins + 1)

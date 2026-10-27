@@ -14,7 +14,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, ValidationError
 
 from . import config
-from .llm import LLMUnavailable
+from .llm import LLM_SOURCES, LLMUnavailable
 
 ATTACK_TYPES = [
     "DDoS",
@@ -195,7 +195,7 @@ def monitoring_agent(state) -> dict:
     }
 
 
-# --- 2. Detection (Gemini, rule fallback) -----------------------------------
+# --- 2. Detection (reasoning model, rule fallback) --------------------------
 
 def _rules_detection(state, note: str) -> dict:
     score = state["monitoring"]["score"]
@@ -363,7 +363,7 @@ def risk_agent(state) -> dict:
     }
 
 
-# --- 4. Response (Gemini, playbook fallback) --------------------------------
+# --- 4. Response (reasoning model, playbook fallback) -----------------------
 
 def make_response_agent(llm):
     def response_agent(state) -> dict:
@@ -419,7 +419,7 @@ def governance_agent(state) -> dict:
             reasons.append(f"{severity} severity requires analyst approval")
         if d["confidence"] < config.AUTO_APPROVE_MIN_CONFIDENCE:
             reasons.append(f"Detector confidence {d['confidence']} < {config.AUTO_APPROVE_MIN_CONFIDENCE}")
-        if d["source"] not in ("gemini", "hybrid"):
+        if d["source"] not in (*LLM_SOURCES, "hybrid"):
             reasons.append(
                 "No reasoning-model explanation (detector-only fallback)"
                 if d["source"] == "anomaly"

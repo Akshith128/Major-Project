@@ -112,7 +112,7 @@ function EvaluationPanel({ run, evaluation: ev }: { run: Run; evaluation: Evalua
           <dl className="m-0 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
             {(
               [
-                ['Confidence calibration (ECE)', cal.n ? `${formatRatio(cal.ece)} over ${cal.n} Gemini calls` : 'no Gemini decisions'],
+                ['Confidence calibration (ECE)', cal.n ? `${formatRatio(cal.ece)} over ${cal.n} model decisions` : 'no reasoning-model decisions'],
                 ['Accuracy at confidence ≥80 / <80', cal.n ? `${formatRatio(cal.accuracy_conf_ge_80)} / ${formatRatio(cal.accuracy_conf_lt_80)}` : '—'],
                 ['Review load', formatRatio(gov.review_load)],
                 ['Auto-approval precision', `${formatRatio(gov.auto_approval_precision)} (${gov.auto_approved_benign} benign auto-approved)`],

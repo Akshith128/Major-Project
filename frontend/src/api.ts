@@ -7,7 +7,7 @@ const BASE = import.meta.env.VITE_AEGIS_API_URL || 'http://127.0.0.1:8000';
 export type Severity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 export type GovernanceDecision = 'NO_ACTION' | 'AUTO_APPROVED' | 'PENDING_REVIEW';
 export type RunStatus = 'RUNNING' | 'COMPLETED' | 'FAILED' | 'STOPPED';
-export type RunMode = 'auto' | 'gemini' | 'rules' | 'hybrid';
+export type RunMode = 'auto' | 'llm' | 'rules' | 'hybrid';
 export type Role = 'analyst' | 'responder' | 'manager' | 'researcher';
 export type Permission = 'run' | 'review' | 'control';
 
@@ -28,7 +28,7 @@ export interface Session {
 export interface Health {
   status: string;
   project: string;
-  gemini: { configured: boolean; model: string };
+  llm: { provider: 'ollama' | 'groq' | 'gemini'; configured: boolean; model: string; local: boolean; note: string | null };
   datasets: number;
   accounts: boolean;
   paused: boolean;
@@ -291,6 +291,15 @@ export const api = {
     }),
   verifyAudit: (id: string) => request<AuditCheck>(`/api/runs/${encodeURIComponent(id)}/audit/verify`),
 };
+
+const PROVIDER_NAMES: Record<string, string> = { ollama: 'Ollama', groq: 'Groq', gemini: 'Gemini' };
+
+/** Display name of a reasoning-model provider (also used for decision sources). */
+export function providerName(provider: string | undefined | null): string {
+  return (provider && PROVIDER_NAMES[provider]) || 'LLM';
+}
+
+export const LLM_SOURCES = ['ollama', 'groq', 'gemini'];
 
 export function datasetLabel(id: string): string {
   return id.replace('_TrafficForML_CICFlowMeter.parquet', '').replace(/-/g, ' ');
