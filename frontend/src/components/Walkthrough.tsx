@@ -61,7 +61,7 @@ function Verdict({ ok, children }: { ok: boolean; children: ReactNode }) {
   return (
     <span
       className={`aegis-pop inline-flex items-center gap-2 self-start rounded-lg border px-3 py-1.5 text-sm font-bold ${
-        ok ? 'border-[#1E5A41] bg-[#0F2E22] text-ok' : 'border-[#6B4F1A] bg-[#3A2A0C] text-warn'
+        ok ? 'border-ok-line bg-ok-soft text-ok' : 'border-warn-line bg-warn-soft text-warn'
       }`}
       style={{ animationDelay: '700ms' }}
     >
@@ -156,7 +156,7 @@ function buildSteps(run: Run, w: WindowResult): Step[] {
             <Stagger
               delay={350}
               items={vote.neighbours.map((n, i) => (
-                <div key={i} className={`flex flex-col items-center gap-1 rounded-lg border px-3 py-2 text-center ${n.family === vote.family ? 'border-signal bg-[#122631]' : 'border-line-strong'}`}>
+                <div key={i} className={`flex flex-col items-center gap-1 rounded-lg border px-3 py-2 text-center ${n.family === vote.family ? 'border-signal bg-signal-soft' : 'border-line-strong'}`}>
                   <span className="text-sm font-semibold">{n.family}</span>
                   <span className="font-mono text-[10px] text-muted">{n.source} · {n.day} · d={n.distance}</span>
                 </div>
@@ -281,7 +281,7 @@ function buildSteps(run: Run, w: WindowResult): Step[] {
               {record.prev_hash.slice(0, 12)}…
             </div>,
             <span key="arrow" className="text-signal">──▶</span>,
-            <div key="this" className="aegis-pulse rounded-lg border border-signal bg-[#122631] px-3 py-2">
+            <div key="this" className="aegis-pulse rounded-lg border border-signal bg-signal-soft px-3 py-2">
               #{record.seq} {record.action}
               <br />
               {record.hash.slice(0, 12)}…{record.mac ? ' · signed' : ''}
@@ -380,7 +380,7 @@ export function Walkthrough({ run }: { run: Run | null }) {
               aria-pressed={on}
               onClick={() => choose(w.index)}
               className={`h-9 min-w-11 cursor-pointer rounded-lg border px-2.5 font-mono text-xs font-semibold ${
-                on ? 'border-signal bg-signal text-signal-ink' : w.detection?.threat ? 'border-[#6B2A30] bg-[#3A1418] text-crit' : 'border-line-strong bg-ink-raised text-soft hover:text-fg'
+                on ? 'border-signal bg-signal text-signal-ink' : w.detection?.threat ? 'border-crit-line bg-crit-soft text-crit' : 'border-line-strong bg-ink-raised text-soft hover:text-fg'
               }`}
             >
               W{w.index}
@@ -389,7 +389,7 @@ export function Walkthrough({ run }: { run: Run | null }) {
         })}
       </Panel>
 
-      <section aria-label="Pipeline progress" className="rounded-xl border border-line bg-panel p-4">
+      <section aria-label="Pipeline progress" className="aegis-glass rounded-2xl border border-line p-4">
         <ol className="m-0 flex list-none items-center gap-0 overflow-x-auto p-0 pb-1">
           {steps.map((s, i) => {
             const state = i < step ? 'done' : i === step ? 'current' : 'pending';
@@ -411,7 +411,7 @@ export function Walkthrough({ run }: { run: Run | null }) {
                         : state === 'current'
                           ? 'aegis-pulse border-signal bg-signal text-signal-ink'
                           : state === 'done'
-                            ? 'border-signal bg-[#122631] text-signal'
+                            ? 'border-signal bg-signal-soft text-signal'
                             : 'border-line-strong text-muted'
                     }`}
                   >

@@ -1,23 +1,97 @@
 @import "tailwindcss";
 
 @theme {
-  --color-ink: #0A0E13;
-  --color-ink-raised: #0D131A;
-  --color-panel: #111821;
-  --color-panel-2: #17202B;
-  --color-line: #1E2835;
-  --color-line-strong: #2E3B4D;
-  --color-fg: #E6EDF3;
-  --color-soft: #A9B6C4;
-  --color-muted: #8B9AAB;
+  /* Obsidian (default): a monochrome base; one accent (AEGIS cyan) only for
+     interactive elements and key metrics. Red/amber/green are status only. */
+  --color-ink: #0B0B0C;
+  --color-ink-raised: #111113;
+  --color-panel: #161618;
+  --color-panel-2: #1E1E21;
+  --color-line: #26262A;
+  --color-line-strong: #36363C;
+  --color-fg: #F5F5F7;
+  --color-soft: #B4B4BC;
+  --color-muted: #8E8E98;
   --color-signal: #38D6F5;
-  --color-signal-ink: #06222A;
+  --color-signal-ink: #04202A;
+  --color-violet: #38D6F5;
   --color-ok: #3DDC97;
   --color-warn: #FFC15A;
   --color-crit: #FF8A8A;
+  --color-info: #7CCBFF;
 
-  --font-sans: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  /* Status tints: reserved for threat state, never decoration. */
+  --color-signal-soft: #0D2329;
+  --color-crit-soft: #2E1215;
+  --color-crit-line: #66292F;
+  --color-warn-soft: #2D220D;
+  --color-warn-line: #66491A;
+  --color-ok-soft: #0E2519;
+  --color-ok-line: #1E5A3C;
+  --color-info-soft: #0F2030;
+  --color-info-line: #24496B;
+  --color-on-ok: #04261A;
+  --color-on-warn: #2A1C00;
+  --color-on-crit: #2A0A0E;
+
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* Canvas: an editorial light mode on warm cream (contrast checked). */
+:root[data-theme="light"] {
+  --color-ink: #F6F4EF;
+  --color-ink-raised: #FBFAF7;
+  --color-panel: #FFFFFF;
+  --color-panel-2: #F1EEE7;
+  --color-line: #E4E0D6;
+  --color-line-strong: #CFC9BC;
+  --color-fg: #141413;
+  --color-soft: #45433E;
+  --color-muted: #5E5B54;
+  --color-signal: #0673A0;
+  --color-signal-ink: #FFFFFF;
+  --color-violet: #0673A0;
+  --color-ok: #0B7F4E;
+  --color-warn: #965C00;
+  --color-crit: #BF2B37;
+  --color-info: #1F68A8;
+  --color-signal-soft: #E2F1F6;
+  --color-crit-soft: #FBECEC;
+  --color-crit-line: #EDB9BD;
+  --color-warn-soft: #FBF1DD;
+  --color-warn-line: #E6C987;
+  --color-ok-soft: #E5F3EA;
+  --color-ok-line: #A6D6BB;
+  --color-info-soft: #E6EFF8;
+  --color-info-line: #B6CDE6;
+  --color-on-ok: #FFFFFF;
+  --color-on-warn: #FFFFFF;
+  --color-on-crit: #FFFFFF;
+  color-scheme: light;
+}
+
+:root {
+  color-scheme: dark;
+  --glow-a: rgb(56 214 245 / 0.07);
+  --glow-b: rgb(255 255 255 / 0.025);
+  --glow-c: rgb(56 214 245 / 0.035);
+  --grid-line: rgb(255 255 255 / 0.035);
+  --card-shadow: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 16px 40px -24px rgb(0 0 0 / 0.8);
+  --card-hover-shadow: 0 1px 0 rgb(255 255 255 / 0.06) inset, 0 22px 48px -24px rgb(56 214 245 / 0.22);
+  --spot: rgb(56 214 245 / 0.55);
+  --spot-fill: rgb(56 214 245 / 0.06);
+}
+
+:root[data-theme="light"] {
+  --glow-a: rgb(6 115 160 / 0.06);
+  --glow-b: rgb(20 20 19 / 0.02);
+  --glow-c: rgb(6 115 160 / 0.03);
+  --grid-line: rgb(20 20 19 / 0.045);
+  --card-shadow: 0 1px 2px rgb(20 20 19 / 0.04), 0 12px 30px -20px rgb(20 20 19 / 0.22);
+  --card-hover-shadow: 0 1px 2px rgb(20 20 19 / 0.05), 0 18px 38px -20px rgb(6 115 160 / 0.28);
+  --spot: rgb(6 115 160 / 0.5);
+  --spot-fill: rgb(6 115 160 / 0.05);
 }
 
 @layer base {
@@ -26,6 +100,23 @@
     background-color: var(--color-ink);
     color: var(--color-fg);
     -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+
+  /* Ambient light: soft colour glows and a faint grid that fades out — depth without noise. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(60rem 36rem at 8% -10%, var(--glow-a), transparent 60%),
+      radial-gradient(50rem 32rem at 100% 0%, var(--glow-b), transparent 60%),
+      radial-gradient(48rem 30rem at 50% 115%, var(--glow-c), transparent 60%),
+      linear-gradient(var(--grid-line) 1px, transparent 1px) 0 0 / 56px 56px,
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px) 0 0 / 56px 56px;
+    mask-image: linear-gradient(to bottom, black, black 55%, transparent 100%);
   }
 
   code, pre, .font-mono {
@@ -39,12 +130,91 @@
   }
 }
 
+/* Glass surfaces: translucent cards with a fine top highlight. */
+.aegis-glass {
+  background: color-mix(in srgb, var(--color-panel) 82%, transparent);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: var(--card-shadow);
+  transition: border-color 0.2s ease, box-shadow 0.25s ease, transform 0.25s ease, background-color 0.25s ease;
+}
+.aegis-glass.aegis-lift:hover {
+  border-color: var(--color-line-strong);
+  box-shadow: var(--card-hover-shadow);
+  transform: translateY(-2px);
+}
+.aegis-header {
+  background: color-mix(in srgb, var(--color-ink-raised) 72%, transparent);
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+}
+.aegis-accent-text { color: var(--color-signal); }
+.aegis-accent-bar { background: var(--color-signal); }
+
+/* Cursor spotlight: a glowing border and soft fill that follow the pointer (set by lib/spotlight.ts). */
+.aegis-glass { position: relative; isolation: isolate; }
+.aegis-glass::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: radial-gradient(240px circle at var(--mx, -999px) var(--my, -999px), var(--spot), transparent 70%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+.aegis-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(320px circle at var(--mx, -999px) var(--my, -999px), var(--spot-fill), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+  z-index: -1;
+}
+.aegis-glass:hover::after, .aegis-glass:hover::before { opacity: 1; }
+
+/* Skeletons and shimmer: show work in progress, then fade into real content. */
+@keyframes aegis-shimmer {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
+}
+.aegis-skeleton {
+  border-radius: 0.75rem;
+  background: linear-gradient(100deg, var(--color-panel-2) 30%, var(--color-line-strong) 50%, var(--color-panel-2) 70%) 0 0 / 200% 100%;
+  animation: aegis-shimmer 1.3s linear infinite;
+}
+.aegis-shimmer-text {
+  background: linear-gradient(100deg, var(--color-signal) 30%, var(--color-fg) 50%, var(--color-signal) 70%) 0 0 / 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: aegis-shimmer 1.6s linear infinite;
+}
+
+/* Entrances: pages fade up; cards in a staggered group arrive one after another. */
+.aegis-page { animation: aegis-fade-up 0.4s ease-out both; }
+.aegis-stagger > * { animation: aegis-fade-up 0.45s ease-out both; }
+.aegis-stagger > *:nth-child(2) { animation-delay: 60ms; }
+.aegis-stagger > *:nth-child(3) { animation-delay: 120ms; }
+.aegis-stagger > *:nth-child(4) { animation-delay: 180ms; }
+.aegis-stagger > *:nth-child(5) { animation-delay: 240ms; }
+.aegis-stagger > *:nth-child(n+6) { animation-delay: 300ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .aegis-page, .aegis-stagger > *, .aegis-skeleton, .aegis-shimmer-text { animation: none; }
+  .aegis-shimmer-text { color: var(--color-signal); background: none; }
+  .aegis-glass, .aegis-glass.aegis-lift:hover { transition: none; transform: none; }
+}
+
 .aegis-grid {
-  background-color: var(--color-ink);
-  background-image:
-    linear-gradient(#141C26 1px, transparent 1px),
-    linear-gradient(90deg, #141C26 1px, transparent 1px);
-  background-size: 48px 48px;
+  background: transparent; /* the body's ambient grid shows through */
 }
 
 .tabular-nums {

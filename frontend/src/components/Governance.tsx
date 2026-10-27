@@ -58,7 +58,7 @@ function EvaluationPanel({ run, evaluation: ev }: { run: Run; evaluation: Evalua
           </thead>
           <tbody>
             {rows.map(([name, m]) => (
-              <tr key={name} className={`border-t border-line align-top ${name === 'pipeline' ? 'bg-[#122631]' : ''}`}>
+              <tr key={name} className={`border-t border-line align-top ${name === 'pipeline' ? 'bg-signal-soft' : ''}`}>
                 <td className="px-4 py-2.5 font-semibold">{DETECTOR_LABELS[name] ?? name}</td>
                 {columns.map(([label, key, ciKey]) => (
                   <td key={label} className="px-2 py-2.5 text-right font-mono">
@@ -204,7 +204,7 @@ function AuditTrail({ run }: { run: Run }) {
           </thead>
           <tbody>
             {[...run.audit].reverse().map((r) => (
-              <tr key={r.seq} className={`border-t border-line align-top ${check && !check.valid && check.broken_at === r.seq ? 'bg-[#3A1418] text-crit' : ''}`}>
+              <tr key={r.seq} className={`border-t border-line align-top ${check && !check.valid && check.broken_at === r.seq ? 'bg-crit-soft text-crit' : ''}`}>
                 <td className="px-4 py-2.5 font-mono text-muted">{r.seq}</td>
                 <td className="px-2 py-2.5 font-mono text-xs text-soft">{new Date(r.at).toLocaleTimeString()}</td>
                 <td className={`px-2 py-2.5 text-xs ${r.actor.startsWith('user:') || r.actor.startsWith('analyst:') ? 'text-signal' : 'text-soft'}`}>{r.actor}</td>
@@ -272,7 +272,7 @@ function StopControl({
             <button
               type="submit"
               disabled={busy}
-              className={`flex h-11 cursor-pointer items-center gap-2 rounded-lg px-4 text-sm font-bold disabled:opacity-50 ${paused ? 'bg-ok text-[#062417]' : 'bg-crit text-[#2A0A0E]'}`}
+              className={`flex h-11 cursor-pointer items-center gap-2 rounded-lg px-4 text-sm font-bold disabled:opacity-50 ${paused ? 'bg-ok text-on-ok' : 'bg-crit text-on-crit'}`}
             >
               {paused ? <Play className="h-4 w-4" aria-hidden="true" /> : <OctagonPause className="h-4 w-4" aria-hidden="true" />}
               {paused ? 'Resume AEGIS' : 'Pause AEGIS'}
@@ -315,7 +315,7 @@ export function Governance({
 
   return (
     <div className="flex flex-col gap-5">
-      <section aria-label="Governance decisions" className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+      <section aria-label="Governance decisions" className="aegis-stagger grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
         <Stat label="Pending review" value={queue.length} note="Needs an analyst decision" tone="text-warn" />
         <Stat label="Auto-approved" value={count('AUTO_APPROVED')} note={`Within policy ${run.windows[0]?.governance.policy ?? 'AEGIS-GOV-1'}`} tone="text-ok" />
         <Stat label="Analyst reviewed" value={reviewed.length} note={`${approved} approved · ${reviewed.length - approved} rejected`} tone="text-signal" />
@@ -324,13 +324,13 @@ export function Governance({
 
       {stop}
 
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-3" aria-label="Digital trust guarantees">
+      <section className="aegis-stagger grid grid-cols-1 gap-4 md:grid-cols-3" aria-label="Digital trust guarantees">
         {[
           ['Human in the loop', `High-severity, low-confidence or rule-based responses wait for a signed-in reviewer. ${queue.length} waiting, ${reviewed.length} reviewed.`],
           ['No silent actions', 'Responses are recommendations; nothing is executed without an approval on record, and the stop control halts the system.'],
           ['Labels isolated', 'Agents see only aggregate traffic features. Ground truth and baselines are attached after the agents finish.'],
         ].map(([t, d]) => (
-          <div key={t} className="flex flex-col gap-2 rounded-xl border border-line bg-panel p-5">
+          <div key={t} className="flex flex-col gap-2 aegis-glass aegis-lift rounded-2xl border border-line p-5">
             <h3 className="m-0 text-base font-semibold">{t}</h3>
             <p className="m-0 text-sm text-soft">{d}</p>
           </div>
@@ -338,7 +338,7 @@ export function Governance({
       </section>
 
       {run.dataset_caution && (
-        <p className="m-0 rounded-xl border border-[#6B4F1A] bg-[#2A1F0A] p-4 text-sm text-warn">
+        <p className="m-0 rounded-xl border border-warn-line bg-warn-soft p-4 text-sm text-warn">
           <strong>Dataset caveat for this run:</strong> {run.dataset_caution}
         </p>
       )}

@@ -1,8 +1,148 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowRight, KeyRound } from 'lucide-react';
+import { ArrowRight, BrainCircuit, Check, FileLock2, Gauge, KeyRound, ListChecks, Radar, ShieldCheck, Siren } from 'lucide-react';
 import { api, type Health, type Session } from '../api';
 import { PAGES, ROLES } from '../lib/operator';
-import { ShieldMark } from './ui';
+import { ShieldMark, ThemeToggle } from './ui';
+
+/* Measured on fresh, never-tuned-on CIC-IDS2018 windows (reports/detector-tuning-results.md). */
+const RESULTS = {
+  mcc: '0.78',
+  falseAlarms: '7.7%',
+  recall: '93%',
+  family: '100%',
+};
+
+type Stage = { icon: typeof Radar; name: string; result: string; tone: 'ok' | 'warn' | 'crit' | 'muted' };
+
+/* Illustrative scenarios for the hero preview; the console shows real runs. */
+const SCENARIOS: { window: string; label: string; stages: Stage[] }[] = [
+  {
+    window: 'W14 · 100 flows',
+    label: 'Volumetric flood',
+    stages: [
+      { icon: Radar, name: 'Anomaly detector', result: 'abnormal · less normal than 99% of baseline', tone: 'crit' },
+      { icon: BrainCircuit, name: 'Incident memory', result: 'DDoS · 3 of 3 nearest incidents agree', tone: 'crit' },
+      { icon: Gauge, name: 'Risk', result: 'CRITICAL · 94 / 100', tone: 'crit' },
+      { icon: ListChecks, name: 'Response', result: 'rate-limit · SYN cookies · scrubbing', tone: 'warn' },
+      { icon: ShieldCheck, name: 'Governance', result: 'awaiting analyst approval', tone: 'warn' },
+    ],
+  },
+  {
+    window: 'W15 · 100 flows',
+    label: 'Normal traffic',
+    stages: [
+      { icon: Radar, name: 'Anomaly detector', result: 'within normal traffic', tone: 'ok' },
+      { icon: BrainCircuit, name: 'Incident memory', result: 'not needed', tone: 'muted' },
+      { icon: Gauge, name: 'Risk', result: 'not scored', tone: 'muted' },
+      { icon: ListChecks, name: 'Response', result: 'nothing to contain', tone: 'muted' },
+      { icon: ShieldCheck, name: 'Governance', result: 'no action · logged', tone: 'ok' },
+    ],
+  },
+  {
+    window: 'W16 · 100 flows',
+    label: 'Login attack',
+    stages: [
+      { icon: Radar, name: 'Anomaly detector', result: 'abnormal · less normal than 97% of baseline', tone: 'crit' },
+      { icon: BrainCircuit, name: 'Incident memory', result: 'Brute Force · matches a confirmed incident', tone: 'crit' },
+      { icon: Gauge, name: 'Risk', result: 'HIGH · 78 / 100', tone: 'warn' },
+      { icon: ListChecks, name: 'Response', result: 'lock accounts · enforce MFA', tone: 'warn' },
+      { icon: ShieldCheck, name: 'Governance', result: 'awaiting analyst approval', tone: 'warn' },
+    ],
+  },
+];
+
+const TONE = { ok: 'text-ok', warn: 'text-warn', crit: 'text-crit', muted: 'text-muted' };
+
+/** The hero artwork is the product: a looping preview of a window moving through the agents. */
+function LivePreview() {
+  const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const [scenario, setScenario] = useState(0);
+  const [stage, setStage] = useState(reduce ? 5 : 0);
+  const [hashes, setHashes] = useState<string[]>(['9f2c…', '41ab…']);
+
+  useEffect(() => {
+    if (reduce) return;
+    const id = setTimeout(() => {
+      if (stage < 5) setStage(stage + 1);
+      else {
+        setHashes((h) => [...h.slice(-2), Math.random().toString(16).slice(2, 6) + '…']);
+        setScenario((s) => (s + 1) % SCENARIOS.length);
+        setStage(0);
+      }
+    }, stage < 5 ? 900 : 2200);
+    return () => clearTimeout(id);
+  }, [stage, reduce]);
+
+  const current = SCENARIOS[scenario];
+  return (
+    <div className="aegis-glass rounded-3xl border border-line p-6 sm:p-7" aria-label="Illustrative preview of the AEGIS pipeline" role="img">
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-mono text-xs tracking-[0.14em] text-muted uppercase">aegis · live pipeline</span>
+        <span className="rounded-full border border-line px-2.5 py-1 font-mono text-[11px] text-muted">illustrative preview</span>
+      </div>
+
+      <div key={scenario} className="aegis-fade-up mt-6 flex items-center justify-between gap-3 rounded-2xl border border-line bg-panel-2 px-4 py-3">
+        <span className="flex items-center gap-2.5">
+          <span className="h-2 w-2 rounded-full bg-signal aegis-pulse" aria-hidden="true" />
+          <span className="font-mono text-sm">{current.window}</span>
+        </span>
+        <span className="text-sm text-soft">{current.label}</span>
+      </div>
+
+      <ol className="m-0 mt-4 flex list-none flex-col gap-1 p-0">
+        {current.stages.map((s, i) => {
+          const done = i < stage;
+          const active = i === stage;
+          const Icon = s.icon;
+          return (
+            <li
+              key={`${scenario}-${s.name}`}
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors duration-300 ${active ? 'bg-signal-soft' : ''}`}
+            >
+              <span
+                className={`flex h-8 w-8 flex-none items-center justify-center rounded-lg border transition-colors duration-300 ${
+                  done ? 'border-signal text-signal' : active ? 'border-signal bg-signal text-signal-ink' : 'border-line text-muted'
+                }`}
+              >
+                {done ? <Check className="h-4 w-4" aria-hidden="true" /> : <Icon className="h-4 w-4" aria-hidden="true" />}
+              </span>
+              <span className="w-36 flex-none text-sm font-semibold">{s.name}</span>
+              <span className="min-w-0 truncate font-mono text-xs">
+                {done ? (
+                  <span className={`aegis-fade-up inline-block ${TONE[s.tone]}`}>{s.result}</span>
+                ) : active ? (
+                  <span className="aegis-shimmer-text">analysing…</span>
+                ) : (
+                  <span className="aegis-skeleton inline-block h-3 w-40 align-middle" />
+                )}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+
+      <div className="mt-5 flex items-center gap-2 border-t border-line pt-4 font-mono text-[11px] text-muted">
+        <FileLock2 className="h-3.5 w-3.5 flex-none text-signal" aria-hidden="true" />
+        <span className="flex-none">audit chain</span>
+        {hashes.map((h, i) => (
+          <span key={h + i} className={`flex items-center gap-2 ${i === hashes.length - 1 ? 'aegis-pop text-fg' : ''}`}>
+            <span className="text-line-strong">→</span>
+            <span className="rounded-md border border-line px-1.5 py-0.5">{h}</span>
+          </span>
+        ))}
+        <span className="ml-auto flex-none">signed</span>
+      </div>
+    </div>
+  );
+}
+
+const STEPS = [
+  { icon: Radar, title: 'Detect', text: 'A one-class model learns what normal traffic looks like on your network and flags windows that do not fit — no attack examples needed.' },
+  { icon: BrainCircuit, title: 'Recognise', text: 'An incident memory names the attack family from the closest known and analyst-confirmed incidents, and maps it to MITRE ATT&CK.' },
+  { icon: Gauge, title: 'Assess', text: 'A fixed, auditable formula turns confidence, homogeneity and attack impact into a risk score. The model may raise severity, never lower it.' },
+  { icon: Siren, title: 'Respond', text: 'A local language model explains the evidence and drafts containment steps. Nothing is executed automatically.' },
+  { icon: ShieldCheck, title: 'Govern', text: 'Policy AEGIS-GOV-1 decides what needs a human. Every decision and approval is hash-chained and signed.' },
+];
 
 export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, remember: boolean) => void }) {
   const [username, setUsername] = useState('');
@@ -31,88 +171,231 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, reme
   };
 
   const noAccounts = health && !health.accounts;
+  const section = 'mx-auto w-full max-w-[1280px] px-5 py-24 sm:px-8 lg:py-32';
 
   return (
-    <div className="aegis-grid flex min-h-screen flex-col items-center justify-center gap-8 px-4 py-12">
-      <div className="flex max-w-3xl flex-col items-center gap-3.5 text-center">
-        <div className="flex items-center gap-3">
-          <ShieldMark size={40} />
-          <span className="font-mono text-[22px] font-bold tracking-[0.32em]">AEGIS</span>
-        </div>
-        <p className="m-0 font-mono text-xs uppercase tracking-[0.18em] text-muted">
-          B.Tech Major Project · Secure operator sign-in
-        </p>
-        <h1 className="m-0 text-[clamp(30px,4.4vw,48px)] font-bold leading-[1.08] tracking-tight text-balance">
-          Agentic AI for Autonomous Threat Detection and Response
-        </h1>
-        <p className="m-0 text-lg text-soft">Enhancing Cybersecurity Governance and Digital Trust</p>
-      </div>
-
-      <form onSubmit={submit} className="flex w-full max-w-[560px] flex-col gap-5 rounded-2xl border border-line-strong bg-panel p-7">
-        {noAccounts && (
-          <div role="status" className="flex flex-col gap-2 rounded-lg border border-[#6B4F1A] bg-[#2A1F0A] p-4 text-sm text-warn">
-            <span className="flex items-center gap-2 font-semibold">
-              <KeyRound className="h-4 w-4" aria-hidden="true" /> No operator accounts yet
-            </span>
-            <span className="text-soft">Create one on the server, then sign in:</span>
-            <code className="rounded bg-ink px-2 py-1.5 font-mono text-xs text-fg">python -m aegis.users add yourname --role analyst</code>
+    <div className="flex min-h-screen flex-col">
+      <header className="aegis-header sticky top-0 z-20 border-b border-line">
+        <nav className="mx-auto flex max-w-[1280px] items-center gap-6 px-5 py-3 sm:px-8" aria-label="Site">
+          <a href="#top" className="flex items-center gap-2.5 text-fg no-underline">
+            <ShieldMark />
+            <span className="font-mono text-sm font-bold tracking-[0.3em]">AEGIS</span>
+          </a>
+          <div className="ml-auto hidden items-center gap-6 text-sm text-soft md:flex">
+            <a href="#how" className="text-soft no-underline transition-colors hover:text-fg">How it works</a>
+            <a href="#results" className="text-soft no-underline transition-colors hover:text-fg">Results</a>
+            <a href="#trust" className="text-soft no-underline transition-colors hover:text-fg">Trust</a>
           </div>
-        )}
-        <label className="flex flex-col gap-2 font-mono text-xs uppercase tracking-[0.12em] text-muted">
-          Username
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            autoComplete="username"
-            autoFocus
-            required
-            className="h-12 rounded-lg border border-line-strong bg-ink px-3.5 font-sans text-base normal-case tracking-normal text-fg"
-          />
-        </label>
-        <label className="flex flex-col gap-2 font-mono text-xs uppercase tracking-[0.12em] text-muted">
-          Password
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-            required
-            className="h-12 rounded-lg border border-line-strong bg-ink px-3.5 font-sans text-base normal-case tracking-normal text-fg"
-          />
-        </label>
+          <div className="ml-auto flex items-center gap-3 md:ml-0">
+            <ThemeToggle />
+            <a href="#signin" className="flex h-11 items-center rounded-lg border border-line-strong px-4 text-sm font-semibold text-fg no-underline transition-colors hover:border-signal">
+              Sign in
+            </a>
+          </div>
+        </nav>
+      </header>
 
-        <label className="flex cursor-pointer items-center gap-2.5 text-sm text-soft">
-          <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="h-4 w-4 accent-[#38D6F5]" />
-          Keep me signed in on this device
-        </label>
+      <main id="top">
+        {/* Hero: value proposition left, the product itself as the artwork right. */}
+        <section className={`${section} grid min-h-[calc(100vh-68px)] items-center gap-14 lg:grid-cols-[1.1fr_1fr]`}>
+          <div className="flex flex-col gap-7">
+            <p className="aegis-fade-up m-0 font-mono text-xs tracking-[0.18em] text-muted uppercase">B.Tech major project · Agentic SOC</p>
+            <h1 className="aegis-fade-up m-0 text-[clamp(40px,6vw,76px)] leading-[1.02] font-extrabold tracking-[-0.03em] text-balance" style={{ animationDelay: '80ms' }}>
+              Threat detection that <span className="aegis-accent-text">shows its work.</span>
+            </h1>
+            <p className="aegis-fade-up m-0 max-w-xl text-lg leading-relaxed text-soft" style={{ animationDelay: '160ms' }}>
+              Agentic AI for autonomous threat detection and response. Five agents detect, recognise, assess and explain every
+              suspicious window — and a human signs off before anything happens.
+            </p>
+            <div className="aegis-fade-up flex flex-wrap items-center gap-5" style={{ animationDelay: '240ms' }}>
+              <a href="#signin" className="flex h-12 items-center gap-2.5 rounded-xl bg-signal px-6 text-base font-bold text-signal-ink no-underline transition-transform duration-200 hover:-translate-y-0.5">
+                Sign in to the console <ArrowRight className="h-[18px] w-[18px]" aria-hidden="true" />
+              </a>
+              <span className="font-mono text-xs text-muted">
+                MCC {RESULTS.mcc} · false alarms {RESULTS.falseAlarms} · fresh CIC-IDS2018 windows
+              </span>
+            </div>
+          </div>
+          <div className="aegis-fade-up" style={{ animationDelay: '200ms' }}>
+            <LivePreview />
+          </div>
+        </section>
 
-        {error && (
-          <p role="alert" className="m-0 text-sm text-warn">
-            {error}
-          </p>
-        )}
-
-        <button
-          type="submit"
-          disabled={busy || !username.trim() || !password}
-          className="flex h-[52px] cursor-pointer items-center justify-center gap-2.5 rounded-lg bg-signal text-base font-bold text-signal-ink hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {busy ? 'Signing in…' : 'Sign in'}
-          <ArrowRight className="h-[18px] w-[18px]" aria-hidden="true" />
-        </button>
-
-        <div className="flex flex-col gap-2 border-t border-line pt-4">
-          <span className="font-mono text-xs uppercase tracking-[0.12em] text-muted">Your account's role sets where you land and what you may do</span>
-          <ul className="m-0 grid list-none grid-cols-1 gap-1.5 p-0 text-sm text-soft sm:grid-cols-2">
-            {ROLES.map((r) => (
-              <li key={r.id}>
-                <span className="font-semibold text-fg">{r.label}</span> · {r.blurb} · opens {PAGES.find((p) => p.id === r.landing)?.label}
+        {/* How it works: asymmetric — a sticky statement left, the five agents right. */}
+        <section id="how" className={`${section} grid gap-14 border-t border-line lg:grid-cols-[1fr_1.4fr]`}>
+          <div className="flex flex-col gap-5 lg:sticky lg:top-28 lg:self-start">
+            <p className="m-0 font-mono text-xs tracking-[0.18em] text-signal uppercase">How it works</p>
+            <h2 className="m-0 text-[clamp(30px,3.6vw,46px)] leading-[1.08] font-extrabold tracking-[-0.02em] text-balance">
+              Five agents. One decision chain you can read end to end.
+            </h2>
+            <p className="m-0 max-w-md text-soft">
+              Each window of 100 network flows travels through the same LangGraph pipeline. Every step leaves evidence behind, so an
+              analyst can see exactly why the system acted.
+            </p>
+          </div>
+          <ol className="m-0 flex list-none flex-col gap-4 p-0">
+            {STEPS.map((s, i) => (
+              <li key={s.title} className="aegis-glass aegis-lift flex gap-5 rounded-2xl border border-line p-6">
+                <span className="font-mono text-sm text-muted">0{i + 1}</span>
+                <span className="flex flex-col gap-2">
+                  <span className="flex items-center gap-2.5 text-lg font-bold">
+                    <s.icon className="h-5 w-5 text-signal" aria-hidden="true" />
+                    {s.title}
+                  </span>
+                  <span className="text-soft">{s.text}</span>
+                </span>
               </li>
             ))}
-          </ul>
+          </ol>
+        </section>
+
+        {/* Results: the headline number is the largest thing on the page. */}
+        <section id="results" className={`${section} border-t border-line`}>
+          <div className="grid items-end gap-12 lg:grid-cols-[1.5fr_1fr]">
+            <div className="flex flex-col gap-4">
+              <p className="m-0 font-mono text-xs tracking-[0.18em] text-signal uppercase">Measured, not claimed</p>
+              <p className="m-0 font-mono text-[clamp(96px,16vw,200px)] leading-[0.9] font-bold tracking-[-0.05em] text-fg">{RESULTS.mcc}</p>
+              <p className="m-0 max-w-lg text-lg text-soft">
+                Detection quality (Matthews correlation) on 800 CIC-IDS2018 windows the system never saw while it was being built,
+                once analysts have confirmed similar incidents (0.74 without). The rule-based baseline scored 0.66 on comparable unseen
+                windows and leans on a testbed shortcut.
+              </p>
+            </div>
+            <dl className="m-0 grid grid-cols-1 gap-3">
+              {[
+                ['False alarm rate', RESULTS.falseAlarms, 'down from 19% in the first design'],
+                ['Attacks caught', RESULTS.recall, 'recall on the same windows'],
+                ['Attack family named', RESULTS.family, 'once analysts confirm similar incidents'],
+              ].map(([k, v, note]) => (
+                <div key={k} className="aegis-glass aegis-lift flex items-baseline justify-between gap-4 rounded-2xl border border-line px-5 py-4">
+                  <dt className="flex flex-col">
+                    <span className="text-sm font-semibold">{k}</span>
+                    <span className="text-xs text-muted">{note}</span>
+                  </dt>
+                  <dd className="m-0 font-mono text-2xl font-bold text-signal">{v}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </section>
+
+        {/* Trust: statement left, the audit chain right. */}
+        <section id="trust" className={`${section} grid items-center gap-14 border-t border-line lg:grid-cols-[1.2fr_1fr]`}>
+          <div className="flex flex-col gap-6">
+            <p className="m-0 font-mono text-xs tracking-[0.18em] text-signal uppercase">Digital trust</p>
+            <h2 className="m-0 text-[clamp(30px,3.6vw,46px)] leading-[1.08] font-extrabold tracking-[-0.02em] text-balance">
+              Autonomy with a human hand on the switch.
+            </h2>
+            <ul className="m-0 flex list-none flex-col gap-3 p-0 text-soft">
+              {[
+                'Responses are recommendations — high-risk ones wait for a signed-in analyst.',
+                'Agents only ever see label-free traffic statistics; no payloads, no addresses.',
+                'A local model runs on the machine: no quota, and no data leaves it.',
+                'A manager can pause the whole system in one click.',
+              ].map((t) => (
+                <li key={t} className="flex gap-3">
+                  <Check className="mt-1 h-4 w-4 flex-none text-signal" aria-hidden="true" />
+                  {t}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="aegis-glass rounded-3xl border border-line p-6 font-mono text-xs">
+            <p className="m-0 mb-4 tracking-[0.14em] text-muted uppercase">Signed audit trail</p>
+            <ol className="m-0 flex list-none flex-col gap-2 p-0">
+              {[
+                ['#41', 'RUN_STARTED', 'user:analyst'],
+                ['#42', 'WINDOW_DECIDED', 'aegis:governance'],
+                ['#43', 'RESPONSE_APPROVED', 'user:responder'],
+              ].map(([seq, action, actor], i) => (
+                <li key={seq} className="flex flex-col gap-1">
+                  <span className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-panel-2 px-3.5 py-2.5">
+                    <span className="text-fg">{seq} {action}</span>
+                    <span className="text-muted">{actor} · HMAC ✓</span>
+                  </span>
+                  {i < 2 && <span className="pl-4 text-line-strong">│ prev-hash links the next record</span>}
+                </li>
+              ))}
+            </ol>
+            <p className="m-0 mt-4 text-muted">Edit, delete or reorder a record and verification fails.</p>
+          </div>
+        </section>
+
+        {/* Sign in */}
+        <section id="signin" className={`${section} grid items-start gap-14 border-t border-line lg:grid-cols-[1fr_1fr]`}>
+          <div className="flex flex-col gap-5">
+            <p className="m-0 font-mono text-xs tracking-[0.18em] text-signal uppercase">Operator console</p>
+            <h2 className="m-0 text-[clamp(30px,3.6vw,46px)] leading-[1.08] font-extrabold tracking-[-0.02em]">Sign in</h2>
+            <p className="m-0 text-soft">Your account’s role sets where you land and what you may do.</p>
+            <ul className="m-0 flex list-none flex-col gap-2.5 p-0 text-sm text-soft">
+              {ROLES.map((r) => (
+                <li key={r.id} className="flex flex-wrap gap-x-2">
+                  <span className="font-semibold text-fg">{r.label}</span>
+                  <span>· {r.blurb} · opens {PAGES.find((p) => p.id === r.landing)?.label}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <form onSubmit={submit} className="aegis-glass flex w-full flex-col gap-5 rounded-3xl border border-line p-7">
+            {noAccounts && (
+              <div role="status" className="flex flex-col gap-2 rounded-xl border border-warn-line bg-warn-soft p-4 text-sm text-warn">
+                <span className="flex items-center gap-2 font-semibold">
+                  <KeyRound className="h-4 w-4" aria-hidden="true" /> No operator accounts yet
+                </span>
+                <span className="text-soft">Create one on the server, then sign in:</span>
+                <code className="rounded bg-ink px-2 py-1.5 font-mono text-xs text-fg">python -m aegis.users add yourname --role analyst</code>
+              </div>
+            )}
+            <label className="flex flex-col gap-2 font-mono text-xs tracking-[0.12em] text-muted uppercase">
+              Username
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
+                required
+                className="h-12 rounded-xl border border-line-strong bg-ink px-3.5 font-sans text-base tracking-normal text-fg normal-case transition-colors focus:border-signal"
+              />
+            </label>
+            <label className="flex flex-col gap-2 font-mono text-xs tracking-[0.12em] text-muted uppercase">
+              Password
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+                className="h-12 rounded-xl border border-line-strong bg-ink px-3.5 font-sans text-base tracking-normal text-fg normal-case transition-colors focus:border-signal"
+              />
+            </label>
+            <label className="flex cursor-pointer items-center gap-2.5 text-sm text-soft">
+              <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="h-4 w-4 accent-signal" />
+              Keep me signed in on this device
+            </label>
+            {error && (
+              <p role="alert" className="m-0 text-sm text-warn">
+                {error}
+              </p>
+            )}
+            <button
+              type="submit"
+              disabled={busy || !username.trim() || !password}
+              className="flex h-12 cursor-pointer items-center justify-center gap-2.5 rounded-xl bg-signal text-base font-bold text-signal-ink transition-transform duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+            >
+              {busy ? <span className="aegis-shimmer-text">Signing in…</span> : 'Sign in'}
+              <ArrowRight className="h-[18px] w-[18px]" aria-hidden="true" />
+            </button>
+          </form>
+        </section>
+      </main>
+
+      <footer className="border-t border-line">
+        <div className="mx-auto flex max-w-[1280px] flex-wrap justify-between gap-3 px-5 py-8 font-mono text-xs text-muted sm:px-8">
+          <span>AEGIS · Enhancing Cybersecurity Governance and Digital Trust</span>
+          <span>LangGraph · Ollama · FastAPI · CIC-IDS2018</span>
         </div>
-      </form>
+      </footer>
     </div>
   );
 }

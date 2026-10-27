@@ -260,7 +260,7 @@ export function Overview({
           {running && (
             <div className="flex flex-col gap-2" role="status">
               <span className="font-mono text-xs text-signal">
-                AGENTS RUNNING · window {run.progress.done}/{run.progress.total}
+                <span className="aegis-shimmer-text">AGENTS RUNNING</span> · window {run.progress.done}/{run.progress.total}
                 {run.windows.length > 0 && ` · last W${run.windows[run.windows.length - 1].index} → ${run.windows[run.windows.length - 1].trace.join(' → ')}`}
               </span>
               <div className="h-1.5 overflow-hidden rounded-full bg-panel-2">
@@ -269,13 +269,13 @@ export function Overview({
             </div>
           )}
           {run.error && (
-            <p role="alert" className="m-0 rounded-xl border border-[#6B2A30] bg-[#3A1418] p-4 text-sm text-crit">
+            <p role="alert" className="m-0 rounded-xl border border-crit-line bg-crit-soft p-4 text-sm text-crit">
               Run {run.status === 'STOPPED' ? 'stopped' : 'failed'}: {run.error}
               {run.error.includes('restart') && ' Start the run again from the form above.'}
             </p>
           )}
 
-          <section aria-label="Run indicators" className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+          <section aria-label="Run indicators" className="aegis-stagger grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
             <Stat label="Windows analysed" value={run.windows.length} note={`${run.config.window_size} flows each`} />
             <Stat label="Flagged by monitoring" value={run.windows.filter((w) => w.monitoring.suspicious).length} note="Sent to detection agent" tone="text-warn" />
             <Stat label="Threats detected" value={threats.length} note={attackTypes.join(', ') || 'None'} tone="text-crit" />

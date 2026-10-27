@@ -21,7 +21,7 @@ import { Incidents } from './components/Incidents';
 import { Governance } from './components/Governance';
 import { Agents } from './components/Agents';
 import { Walkthrough } from './components/Walkthrough';
-import { Kicker, ShieldMark } from './components/ui';
+import { Kicker, ShieldMark, SkeletonPage, ThemeToggle } from './components/ui';
 
 const PROJECT_TITLE = 'Agentic AI for Autonomous Threat Detection and Response';
 const PROJECT_SUBTITLE = 'Enhancing Cybersecurity Governance and Digital Trust';
@@ -131,7 +131,7 @@ export default function App() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-20 border-b border-line bg-ink-raised/95 backdrop-blur">
+      <header className="aegis-header sticky top-0 z-20 border-b border-line">
         <div className="mx-auto flex max-w-[1760px] flex-wrap items-center gap-x-7 gap-y-3 px-4 py-3 sm:px-6">
           <button type="button" onClick={() => setPage(role.landing)} className="flex cursor-pointer items-center gap-2.5" aria-label="AEGIS home">
             <ShieldMark />
@@ -148,12 +148,12 @@ export default function App() {
                   onClick={() => setPage(p.id)}
                   aria-current={on ? 'page' : undefined}
                   className={`h-11 shrink-0 cursor-pointer rounded-lg px-3.5 text-sm font-medium whitespace-nowrap ${
-                    on ? 'bg-panel-2 text-white shadow-[inset_0_-2px_0_var(--color-signal)]' : 'text-soft hover:text-fg'
+                    on ? 'bg-panel-2 text-fg shadow-[inset_0_-2px_0_var(--color-signal)]' : 'text-soft hover:text-fg'
                   }`}
                 >
                   {p.label}
                   {p.id === 'governance' && (run?.summary?.pending_review ?? 0) > 0 && (
-                    <span className="ml-2 rounded-full bg-warn px-1.5 font-mono text-[11px] font-bold text-[#2A1C00]">{run?.summary?.pending_review}</span>
+                    <span className="ml-2 rounded-full bg-warn px-1.5 font-mono text-[11px] font-bold text-on-warn">{run?.summary?.pending_review}</span>
                   )}
                 </button>
               );
@@ -174,6 +174,7 @@ export default function App() {
             <div className="flex h-10 w-10 items-center justify-center rounded-full border border-signal bg-panel-2 text-sm font-bold" title={`${operatorName} (${account.username}) · ${role.label}`}>
               {initialsOf(account.name)}
             </div>
+            <ThemeToggle />
             <button type="button" onClick={signOut} aria-label="Sign out" title="Sign out" className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-lg border border-line-strong text-soft hover:text-fg">
               <LogOut className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -187,7 +188,9 @@ export default function App() {
             <Kicker className="text-signal">
               {greetingFor()}, {operatorName} · {role.label}
             </Kicker>
-            <h1 className="m-0 text-[clamp(26px,3vw,36px)] leading-tight font-bold tracking-tight text-balance">{PROJECT_TITLE}</h1>
+            <h1 className="m-0 text-[clamp(26px,3vw,38px)] leading-tight font-bold tracking-tight text-balance">
+              Agentic AI for <span className="aegis-accent-text">Autonomous Threat Detection</span> and Response
+            </h1>
             <p className="m-0 text-base text-soft">{role.focus}</p>
           </div>
           {runs.length > 0 && (
@@ -205,7 +208,7 @@ export default function App() {
         </section>
 
         {control?.paused && (
-          <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl border border-[#6B2A30] bg-[#3A1418] p-4 text-sm text-crit">
+          <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl border border-crit-line bg-crit-soft p-4 text-sm text-crit">
             <OctagonPause className="h-5 w-5 flex-none" aria-hidden="true" />
             <span className="min-w-0 flex-1">
               <strong>AEGIS is paused.</strong> No run can start and running work stopped after its current window
@@ -222,7 +225,7 @@ export default function App() {
         )}
 
         {apiError && (
-          <div role="alert" className="flex flex-wrap items-start gap-3 rounded-xl border border-[#6B4F1A] bg-[#3A2A0C] p-4 text-sm text-warn">
+          <div role="alert" className="flex flex-wrap items-start gap-3 rounded-xl border border-warn-line bg-warn-soft p-4 text-sm text-warn">
             <AlertTriangle className="mt-0.5 h-4 w-4 flex-none" aria-hidden="true" />
             <span className="min-w-0 flex-1">{apiError}</span>
             <button type="button" onClick={() => void connect()} className="cursor-pointer font-semibold underline">
@@ -231,6 +234,10 @@ export default function App() {
           </div>
         )}
 
+        {runId && run?.id !== runId && page !== 'overview' ? (
+          <SkeletonPage />
+        ) : (
+        <div key={page} className="aegis-page flex flex-col gap-7">
         {page === 'overview' && (
           <Overview run={run} account={account} paused={!!control?.paused} datasets={datasets} health={health} selected={selected} onStart={startRun} onInspect={inspect} />
         )}
@@ -242,6 +249,8 @@ export default function App() {
         )}
         {page === 'agents' && <Agents run={run} />}
         {page === 'walkthrough' && <Walkthrough run={run} />}
+        </div>
+        )}
       </main>
 
       <footer className="border-t border-line">

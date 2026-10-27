@@ -80,12 +80,12 @@ function ReviewBox({
   if (w.governance.decision !== 'PENDING_REVIEW') return null;
   if (!canReview)
     return (
-      <p className="m-0 rounded-lg border border-[#6B4F1A] bg-ink-raised p-4 text-sm text-warn">
+      <p className="m-0 rounded-lg border border-warn-line bg-ink-raised p-4 text-sm text-warn">
         Awaiting approval by an analyst, responder or security manager. Your role can view it but not decide.
       </p>
     );
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-[#6B4F1A] bg-ink-raised p-4">
+    <div className="flex flex-col gap-3 rounded-lg border border-warn-line bg-ink-raised p-4">
       <label className="flex flex-col gap-2 text-sm font-semibold">
         Your approval is required before this response is executed
         <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={500} placeholder="Why you approve or reject — recorded in the audit trail" className="rounded-lg border border-line-strong bg-ink p-3 text-sm font-normal text-fg placeholder:text-muted" />
@@ -102,7 +102,7 @@ function ReviewBox({
         <span className="text-xs text-muted">Approving confirms it; similar incidents will be named the same way.</span>
       </label>
       <div className="flex flex-wrap gap-2.5">
-        <button type="button" disabled={busy} onClick={() => decide('APPROVED')} className="flex h-11 cursor-pointer items-center gap-2 rounded-lg bg-ok px-4 text-sm font-bold text-[#062417] disabled:opacity-50">
+        <button type="button" disabled={busy} onClick={() => decide('APPROVED')} className="flex h-11 cursor-pointer items-center gap-2 rounded-lg bg-ok px-4 text-sm font-bold text-on-ok disabled:opacity-50">
           <Check className="h-4 w-4" aria-hidden="true" /> Approve response
         </button>
         <button type="button" disabled={busy} onClick={() => decide('REJECTED')} className="flex h-11 cursor-pointer items-center gap-2 rounded-lg border border-line-strong px-4 text-sm font-semibold text-fg hover:border-crit disabled:opacity-50">
@@ -296,7 +296,7 @@ export function Incidents({
       <div className="flex min-w-0 flex-col gap-3 xl:sticky xl:top-20">
         <div className="flex flex-wrap gap-2" role="group" aria-label="Filter windows">
           {filters.map(([id, label]) => (
-            <button key={id} type="button" aria-pressed={filter === id} onClick={() => setFilter(id)} className={`h-10 cursor-pointer rounded-full border px-4 text-sm ${filter === id ? 'border-signal bg-[#122631] text-fg' : 'border-line-strong text-soft hover:text-fg'}`}>
+            <button key={id} type="button" aria-pressed={filter === id} onClick={() => setFilter(id)} className={`h-10 cursor-pointer rounded-full border px-4 text-sm ${filter === id ? 'border-signal bg-signal-soft text-fg' : 'border-line-strong text-soft hover:text-fg'}`}>
               {label} <span className="font-mono opacity-80">{run.windows.filter(matches[id]).length}</span>
             </button>
           ))}
@@ -319,7 +319,7 @@ export function Incidents({
                 {rows.map((w) => {
                   const on = current?.index === w.index;
                   return (
-                    <tr key={w.index} className={`border-t border-line ${on ? 'bg-[#122631]' : ''}`}>
+                    <tr key={w.index} className={`border-t border-line ${on ? 'bg-signal-soft' : ''}`}>
                       <td className="px-4 py-2">
                         <button type="button" onClick={() => onSelect(w.index)} aria-current={on} className="cursor-pointer py-1.5 font-mono text-signal hover:underline">
                           W{w.index}

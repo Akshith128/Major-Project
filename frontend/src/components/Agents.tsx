@@ -70,7 +70,7 @@ export function Agents({ run }: { run: Run | null }) {
                   <li key={a.id} className="flex min-w-0 flex-[1_1_170px] items-center gap-2.5">
                     <div
                       className={`flex min-w-0 flex-1 flex-col gap-1 rounded-lg border p-3.5 transition-opacity ${
-                        route ? (lit ? 'border-signal bg-[#122631]' : 'border-dashed border-line-strong opacity-40') : 'border-line-strong bg-ink-raised'
+                        route ? (lit ? 'border-signal bg-signal-soft' : 'border-dashed border-line-strong opacity-40') : 'border-line-strong bg-ink-raised'
                       }`}
                     >
                       <span className="font-mono text-[11px] tracking-[0.14em] text-signal">{i + 1} · {a.name.replace(' agent', '').toUpperCase()}</span>
@@ -93,7 +93,7 @@ export function Agents({ run }: { run: Run | null }) {
                     aria-pressed={on}
                     onClick={() => setTraced(on ? null : w.index)}
                     className={`h-9 min-w-11 cursor-pointer rounded-lg border px-2.5 font-mono text-xs font-semibold ${
-                      on ? 'border-signal bg-signal text-signal-ink' : w.detection?.threat ? 'border-[#6B2A30] bg-[#3A1418] text-crit' : 'border-line-strong bg-ink-raised text-soft hover:text-fg'
+                      on ? 'border-signal bg-signal text-signal-ink' : w.detection?.threat ? 'border-crit-line bg-crit-soft text-crit' : 'border-line-strong bg-ink-raised text-soft hover:text-fg'
                     }`}
                   >
                     W{w.index}
@@ -106,7 +106,7 @@ export function Agents({ run }: { run: Run | null }) {
       )}
 
       {run && windows.length > 0 && (
-        <section aria-label="Routing" className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+        <section aria-label="Routing" className="aegis-stagger grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
           <Stat label="Clean → governance" value={windows.length - detected.length} note="Below the monitoring gate" tone="text-signal" />
           <Stat label="Cleared by detection" value={detected.length - threats.length} note={`${viaLlm} reasoning model · ${detected.length - viaLlm} rules`} tone="text-warn" />
           <Stat label="Full pipeline" value={threats.length} note="Risk + response + governance" tone="text-crit" />
@@ -116,7 +116,7 @@ export function Agents({ run }: { run: Run | null }) {
 
       <ol className="m-0 grid list-none grid-cols-1 gap-4 p-0 lg:grid-cols-2">
         {AGENTS.map((a, i) => (
-          <li key={a.id} className="flex min-w-0 flex-col gap-3 rounded-xl border border-line bg-panel p-5">
+          <li key={a.id} className="flex min-w-0 flex-col gap-3 aegis-glass aegis-lift rounded-2xl border border-line p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <Kicker className="text-signal">
                 Step {i + 1} · {a.kind}
