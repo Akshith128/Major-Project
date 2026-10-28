@@ -245,7 +245,7 @@ export function Overview({
   const role = account.role;
   const running = run?.status === 'RUNNING';
   const blocked = paused
-    ? 'AEGIS is paused; a security manager must resume it first.'
+    ? 'AEGIS is halted; a security manager must resume it first.'
     : can(account, 'run')
       ? null
       : `${account.role_label}s can view runs but not start them.`;

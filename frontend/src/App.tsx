@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, LogOut, OctagonPause } from 'lucide-react';
+import { AlertTriangle, LogOut, OctagonPause, Orbit } from 'lucide-react';
 import {
   api,
   datasetLabel,
@@ -21,14 +21,15 @@ import { Incidents } from './components/Incidents';
 import { Governance } from './components/Governance';
 import { Agents } from './components/Agents';
 import { Walkthrough } from './components/Walkthrough';
+import { HaltControl } from './components/HaltControl';
 import { Kicker, ShieldMark, SkeletonPage, ThemeToggle } from './components/ui';
 
-const PROJECT_TITLE = 'Agentic AI for Autonomous Threat Detection and Response';
 const PROJECT_SUBTITLE = 'Enhancing Cybersecurity Governance and Digital Trust';
+const TAGLINE = 'Nothing escapes the event horizon';
 
 export default function App() {
   const [account, setAccount] = useState<Account | null>(() => readSession()?.user ?? null);
-  const [page, setPage] = useState<ConsolePage>(() => (account ? roleSpec(account.role).landing : 'overview'));
+  const [page, setPage] = useState<ConsolePage>('overview');
   const [control, setControl] = useState<ControlState | null>(null);
 
   const [health, setHealth] = useState<Health | null>(null);
@@ -96,7 +97,7 @@ export default function App() {
   const enter = (session: Session, remember: boolean) => {
     saveSession(session, remember);
     setAccount(session.user);
-    setPage(roleSpec(session.user.role).landing);
+    setPage('overview');
   };
 
   const operatorName = account?.name || 'Operator';
@@ -133,12 +134,12 @@ export default function App() {
     <div className="flex min-h-screen flex-col">
       <header className="aegis-header sticky top-0 z-20 border-b border-line">
         <div className="mx-auto flex max-w-[1760px] flex-wrap items-center gap-x-7 gap-y-3 px-4 py-3 sm:px-6">
-          <button type="button" onClick={() => setPage(role.landing)} className="flex cursor-pointer items-center gap-2.5" aria-label="AEGIS home">
+          <button type="button" onClick={() => setPage('overview')} className="flex cursor-pointer items-center gap-2.5" aria-label="AEGIS home">
             <ShieldMark />
             <span className="font-mono font-bold tracking-[0.28em]">AEGIS</span>
           </button>
 
-          <nav aria-label="Console sections" className="order-3 flex w-full gap-1 overflow-x-auto md:order-none md:w-auto md:flex-1">
+          <nav aria-label="Console sections" className="order-3 flex w-full gap-1 overflow-x-auto xl:order-none xl:w-auto xl:flex-1">
             {PAGES.map((p) => {
               const on = p.id === page;
               return (
@@ -161,12 +162,13 @@ export default function App() {
           </nav>
 
           <div className="ml-auto flex items-center gap-3">
+            <HaltControl control={control} canHalt={can(account, 'stop')} canResume={can(account, 'control')} onPause={setPaused} />
             <span className={`hidden items-center gap-2 font-mono text-xs sm:flex ${apiError ? 'text-warn' : 'text-ok'}`}>
               <span className={`h-2 w-2 rounded-full ${apiError ? 'bg-warn' : 'bg-ok'}`} aria-hidden="true" />
               {apiError
                 ? 'API OFFLINE'
                 : control?.paused
-                  ? 'PAUSED'
+                  ? 'HALTED'
                   : health?.llm.configured
                     ? `${providerName(health.llm.provider).toUpperCase()} ONLINE`
                     : 'RULES MODE'}
@@ -192,6 +194,10 @@ export default function App() {
               Agentic AI for <span className="aegis-accent-text">Autonomous Threat Detection</span> and Response
             </h1>
             <p className="m-0 text-base text-soft">{role.focus}</p>
+            <p className="m-0 flex items-center gap-2 font-mono text-xs tracking-[0.12em] text-signal uppercase">
+              <Orbit className="h-4 w-4" aria-hidden="true" />
+              {TAGLINE}
+            </p>
           </div>
           {runs.length > 0 && (
             <label className="flex min-w-0 flex-[0_1_360px] flex-col gap-2 font-mono text-xs uppercase tracking-[0.12em] text-muted">
@@ -211,7 +217,7 @@ export default function App() {
           <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl border border-crit-line bg-crit-soft p-4 text-sm text-crit">
             <OctagonPause className="h-5 w-5 flex-none" aria-hidden="true" />
             <span className="min-w-0 flex-1">
-              <strong>AEGIS is paused.</strong> No run can start and running work stopped after its current window
+              <strong>AEGIS is halted.</strong> No run can start and running work stopped after its current window
               {control.by && ` · by ${control.by.replace('user:', '')}`}
               {control.at && ` at ${new Date(control.at).toLocaleString()}`}
               {control.reason && ` · “${control.reason}”`}
@@ -245,7 +251,7 @@ export default function App() {
           <Incidents key={run?.id} run={run} role={account.role} canReview={can(account, 'review')} selected={selected} onSelect={setSelected} onReview={review} />
         )}
         {page === 'governance' && (
-          <Governance run={run} control={control} canControl={can(account, 'control')} onPause={setPaused} onOpen={inspect} />
+          <Governance run={run} onOpen={inspect} />
         )}
         {page === 'agents' && <Agents run={run} />}
         {page === 'walkthrough' && <Walkthrough run={run} />}
@@ -255,7 +261,7 @@ export default function App() {
 
       <footer className="border-t border-line">
         <div className="mx-auto flex max-w-[1760px] flex-wrap justify-between gap-2.5 px-4 py-5 text-sm text-muted sm:px-6">
-          <span>AEGIS · {PROJECT_TITLE}: {PROJECT_SUBTITLE}</span>
+          <span>AEGIS · {TAGLINE} · {PROJECT_SUBTITLE}</span>
           <span className="font-mono">LangGraph · {providerName(health?.llm.provider)} · Backend server · CIC-IDS2018</span>
         </div>
       </footer>

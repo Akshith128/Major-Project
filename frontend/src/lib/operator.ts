@@ -1,7 +1,7 @@
 /**
  * Operator personalization. Who is at the console now comes from a signed-in
  * account (the server decides the role); this module keeps the session token
- * and maps each role to its landing page and focus line.
+ * and maps each role to its label and focus line. Every role opens on Overview.
  */
 
 import type { Account, Permission, Role, Session } from '../api';
@@ -15,7 +15,6 @@ export interface RoleSpec {
   label: string;
   blurb: string;
   focus: string;
-  landing: ConsolePage;
 }
 
 export const ROLES: RoleSpec[] = [
@@ -24,28 +23,24 @@ export const ROLES: RoleSpec[] = [
     label: 'SOC Analyst',
     blurb: 'Launch runs, triage detections',
     focus: 'Start a monitoring run and triage what the agents detect.',
-    landing: 'overview',
   },
   {
     id: 'responder',
     label: 'Incident Responder',
     blurb: 'Review and approve responses',
     focus: 'Responses waiting for your approval are at the top of the incident list.',
-    landing: 'incidents',
   },
   {
     id: 'manager',
     label: 'Security Manager',
     blurb: 'Governance and digital trust',
-    focus: 'The review queue, the stop control, the signed audit trail and evaluation evidence.',
-    landing: 'governance',
+    focus: 'The review queue, the signed audit trail and evaluation evidence. Halt AEGIS is at the top of every page.',
   },
   {
     id: 'researcher',
     label: 'Researcher',
     blurb: 'Agents and evaluation (read-only)',
     focus: 'How the five LangGraph agents route each traffic window, and how they compare with the baselines.',
-    landing: 'agents',
   },
 ];
 
@@ -61,6 +56,7 @@ export const PAGES: { id: ConsolePage; label: string }[] = [
 const PERMISSIONS: Record<Permission, OperatorRole[]> = {
   run: ['analyst', 'manager'],
   review: ['analyst', 'responder', 'manager'],
+  stop: ['analyst', 'responder', 'manager', 'researcher'],
   control: ['manager'],
 };
 

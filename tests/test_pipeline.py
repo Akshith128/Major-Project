@@ -401,6 +401,7 @@ class AuthTests(unittest.TestCase):
     def test_permissions(self):
         self.assertTrue(auth.can("manager", "control"))
         self.assertFalse(auth.can("analyst", "control"))
+        self.assertTrue(all(auth.can(role, "stop") for role in auth.ROLES))
         self.assertFalse(auth.can("researcher", "review"))
         self.assertFalse(auth.can("responder", "run"))
 

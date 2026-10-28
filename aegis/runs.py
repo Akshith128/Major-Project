@@ -149,7 +149,7 @@ class RunService:
     ) -> dict:
         user = user or DEFAULT_USER
         if control.is_paused():
-            raise RunPaused("AEGIS is paused by a security manager. Resume it before starting a run.")
+            raise RunPaused("AEGIS is halted. A security manager must resume it before a run can start.")
         if mode == "gemini":  # older name for "the reasoning model decides"
             mode = "llm"
         if mode not in ("auto", "llm", "rules", "hybrid"):

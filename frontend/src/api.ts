@@ -9,7 +9,7 @@ export type GovernanceDecision = 'NO_ACTION' | 'AUTO_APPROVED' | 'PENDING_REVIEW
 export type RunStatus = 'RUNNING' | 'COMPLETED' | 'FAILED' | 'STOPPED';
 export type RunMode = 'auto' | 'llm' | 'rules' | 'hybrid';
 export type Role = 'analyst' | 'responder' | 'manager' | 'researcher';
-export type Permission = 'run' | 'review' | 'control';
+export type Permission = 'run' | 'review' | 'stop' | 'control';
 
 export interface Account {
   username: string;

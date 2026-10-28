@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState, type FormEvent } from 'react';
 import { ArrowRight, BrainCircuit, Check, FileLock2, Gauge, KeyRound, ListChecks, Radar, ShieldCheck, Siren } from 'lucide-react';
 import { api, type Health, type Session } from '../api';
-import { PAGES, ROLES } from '../lib/operator';
+import { ROLES } from '../lib/operator';
 import { ShieldMark, ThemeToggle } from './ui';
 import { useTheme } from '../lib/theme';
 
@@ -208,6 +208,11 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, reme
         <section className="mx-auto flex min-h-[calc(100svh-68px)] w-full max-w-[1280px] flex-col items-center justify-center px-5 pt-6 pb-20 text-center sm:px-8">
           {/* Stage for the 3D black hole (OrbitScene centres and sizes itself here); CSS rings stand in without WebGL. */}
           <div data-orbit-anchor className="aegis-orbit h-[48svh] min-h-[280px] w-full max-w-[1100px]" aria-hidden="true" />
+          <p className="aegis-fade-up m-0 mb-8 flex items-center gap-4 font-mono text-xs tracking-[0.24em] text-signal uppercase">
+            <span className="h-px w-10 bg-current opacity-50" aria-hidden="true" />
+            Nothing escapes the event horizon
+            <span className="h-px w-10 bg-current opacity-50" aria-hidden="true" />
+          </p>
           <div className="flex max-w-3xl flex-col items-center gap-6">
             <p className="aegis-fade-up m-0 font-mono text-xs tracking-[0.24em] text-muted uppercase">Agentic SOC</p>
             <h1 className="aegis-fade-up m-0 text-[clamp(38px,5.6vw,72px)] leading-[1.02] font-extrabold tracking-[-0.03em] text-balance" style={{ animationDelay: '80ms' }}>
@@ -236,8 +241,9 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, reme
               Five agents. One decision chain you can read end to end.
             </h2>
             <p className="m-0 max-w-md text-soft">
-              Each window of 100 network flows travels through the same LangGraph pipeline. Every step leaves evidence behind, so an
-              analyst can see exactly why the system acted.
+              AEGIS works like an event horizon: every window of 100 network flows is pulled through the same LangGraph pipeline,
+              and nothing comes back out without a governance decision on record. Every step leaves evidence behind, so an analyst can
+              see exactly why the system acted.
             </p>
             <LivePreview />
           </div>
@@ -334,12 +340,12 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, reme
           <div className="flex flex-col gap-5">
             <p className="m-0 font-mono text-xs tracking-[0.24em] text-signal uppercase">Operator console</p>
             <h2 className="m-0 text-[clamp(30px,3.6vw,46px)] leading-[1.08] font-extrabold tracking-[-0.02em]">Sign in</h2>
-            <p className="m-0 text-soft">Your account’s role sets where you land and what you may do.</p>
+            <p className="m-0 text-soft">Everyone opens on the overview; your account’s role sets what you may do.</p>
             <ul className="m-0 flex list-none flex-col gap-2.5 p-0 text-sm text-soft">
               {ROLES.map((r) => (
                 <li key={r.id} className="flex flex-wrap gap-x-2">
                   <span className="font-semibold text-fg">{r.label}</span>
-                  <span>· {r.blurb} · opens {PAGES.find((p) => p.id === r.landing)?.label}</span>
+                  <span>· {r.blurb}</span>
                 </li>
               ))}
             </ul>
@@ -400,7 +406,7 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, reme
 
       <footer className="border-t border-line">
         <div className="mx-auto flex max-w-[1280px] flex-wrap justify-between gap-3 px-5 py-8 font-mono text-xs text-muted sm:px-8">
-          <span>AEGIS · Enhancing Cybersecurity Governance and Digital Trust</span>
+          <span>AEGIS · Nothing escapes the event horizon · Enhancing Cybersecurity Governance and Digital Trust</span>
           <span>LangGraph · Ollama · Backend server · CIC-IDS2018</span>
         </div>
       </footer>

@@ -109,7 +109,10 @@ def create_app(service: RunService | None = None) -> FastAPI:
         return control.state()
 
     @app.post("/api/control")
-    def set_control(body: ControlRequest, user: dict = Depends(require("control"))):
+    def set_control(body: ControlRequest, user: dict = Depends(current_user)):
+        # Anyone signed in may stop AEGIS; resuming needs a manager.
+        if not auth.can(user["role"], "stop" if body.paused else "control"):
+            raise HTTPException(403, f"Your role ({user['role_label']}) cannot resume AEGIS; a security manager must.")
         return control.set_paused(body.paused, actor(user), body.reason)
 
     @app.get("/api/datasets")

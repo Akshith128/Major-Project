@@ -24,10 +24,12 @@ ROLES = {
     "researcher": "Researcher",
 }
 
-# Who may do what. Everyone signed in may read runs and verify audit trails.
+# Who may do what. Everyone signed in may read runs and verify audit trails, and
+# anyone may hit the emergency stop; only a manager may resume after a stop.
 PERMISSIONS = {
     "run": {"analyst", "manager"},
     "review": {"analyst", "responder", "manager"},
+    "stop": set(ROLES),
     "control": {"manager"},
 }
 

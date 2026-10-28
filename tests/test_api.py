@@ -65,7 +65,9 @@ class ApiTests(unittest.TestCase):
     def test_roles_are_enforced_on_the_server(self):
         body = {"dataset_id": self.dataset, "windows": 2}
         self.assertEqual(self.client.post("/api/runs", headers=self.headers("rex"), json=body).status_code, 403)
-        self.assertEqual(self.client.post("/api/control", headers=self.headers("ana"), json={"paused": True}).status_code, 403)
+        self.assertEqual(self.client.post("/api/control", headers=self.headers("ana"), json={"paused": True}).status_code, 200)
+        self.assertEqual(self.client.post("/api/control", headers=self.headers("ana"), json={"paused": False}).status_code, 403)
+        self.client.post("/api/control", headers=self.headers("max"), json={"paused": False})
 
     def test_pause_control(self):
         m = self.headers("max")

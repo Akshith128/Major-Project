@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { CheckCircle2, OctagonPause, Play, ShieldAlert, ShieldCheck, XCircle } from 'lucide-react';
-import { api, type AuditCheck, type ControlState, type Evaluation, type Metrics, type Run } from '../api';
+import { useCallback, useEffect, useState } from 'react';
+import { CheckCircle2, ShieldAlert, ShieldCheck, XCircle } from 'lucide-react';
+import { api, type AuditCheck, type Evaluation, type Metrics, type Run } from '../api';
 import { EmptyState, Panel, Stat, formatRatio } from './ui';
 
 const DETECTOR_LABELS: Record<string, string> = {
@@ -225,89 +225,8 @@ function AuditTrail({ run }: { run: Run }) {
   );
 }
 
-/** EU AI Act Art. 14(4)(e): a stop button that halts the system in a safe state. */
-function StopControl({
-  control,
-  canControl,
-  onPause,
-}: {
-  control: ControlState | null;
-  canControl: boolean;
-  onPause: (paused: boolean, reason: string) => Promise<void>;
-}) {
-  const [reason, setReason] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const paused = !!control?.paused;
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      await onPause(!paused, reason);
-      setReason('');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not change the stop control.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <Panel title="Stop control" meta={paused ? 'PAUSED' : 'running normally'}>
-      <form onSubmit={submit} className="flex flex-col gap-3">
-        <p className="m-0 text-sm text-soft">
-          Pausing blocks new runs and stops a running one after its current window. Nothing is ever executed automatically, so the
-          network is left as it is and pending recommendations stay pending.
-        </p>
-        {canControl ? (
-          <div className="flex flex-wrap items-end gap-3">
-            {!paused && (
-              <label className="flex min-w-0 flex-[1_1_260px] flex-col gap-1.5 text-sm text-soft">
-                Reason (recorded)
-                <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} placeholder="e.g. Suspected model misbehaviour" className="h-11 rounded-lg border border-line-strong bg-ink px-3 text-sm text-fg" />
-              </label>
-            )}
-            <button
-              type="submit"
-              disabled={busy}
-              className={`flex h-11 cursor-pointer items-center gap-2 rounded-lg px-4 text-sm font-bold disabled:opacity-50 ${paused ? 'bg-ok text-on-ok' : 'bg-crit text-on-crit'}`}
-            >
-              {paused ? <Play className="h-4 w-4" aria-hidden="true" /> : <OctagonPause className="h-4 w-4" aria-hidden="true" />}
-              {paused ? 'Resume AEGIS' : 'Pause AEGIS'}
-            </button>
-          </div>
-        ) : (
-          <p className="m-0 text-sm text-muted">Only a security manager can pause or resume AEGIS.</p>
-        )}
-        {error && <p role="alert" className="m-0 text-sm text-warn">{error}</p>}
-      </form>
-    </Panel>
-  );
-}
-
-export function Governance({
-  run,
-  control,
-  canControl,
-  onPause,
-  onOpen,
-}: {
-  run: Run | null;
-  control: ControlState | null;
-  canControl: boolean;
-  onPause: (paused: boolean, reason: string) => Promise<void>;
-  onOpen: (index: number) => void;
-}) {
-  const stop = <StopControl control={control} canControl={canControl} onPause={onPause} />;
-  if (!run)
-    return (
-      <div className="flex flex-col gap-5">
-        {stop}
-        <EmptyState>Governance evidence appears here after the first run.</EmptyState>
-      </div>
-    );
+export function Governance({ run, onOpen }: { run: Run | null; onOpen: (index: number) => void }) {
+  if (!run) return <EmptyState>Governance evidence appears here after the first run.</EmptyState>;
   const queue = run.windows.filter((w) => w.governance.decision === 'PENDING_REVIEW' && !w.review);
   const reviewed = run.windows.filter((w) => w.review);
   const count = (d: string) => run.windows.filter((w) => w.governance.decision === d).length;
@@ -322,12 +241,10 @@ export function Governance({
         <Stat label="No action" value={count('NO_ACTION')} note="Clean or cleared windows" tone="text-soft" />
       </section>
 
-      {stop}
-
       <section className="aegis-stagger grid grid-cols-1 gap-4 md:grid-cols-3" aria-label="Digital trust guarantees">
         {[
           ['Human in the loop', `High-severity, low-confidence or rule-based responses wait for a signed-in reviewer. ${queue.length} waiting, ${reviewed.length} reviewed.`],
-          ['No silent actions', 'Responses are recommendations; nothing is executed without an approval on record, and the stop control halts the system.'],
+          ['No silent actions', 'Responses are recommendations; nothing is executed without an approval on record, and anyone can halt the system from the top of every page.'],
           ['Labels isolated', 'Agents see only aggregate traffic features. Ground truth and baselines are attached after the agents finish.'],
         ].map(([t, d]) => (
           <div key={t} className="flex flex-col gap-2 aegis-glass aegis-lift rounded-xl border border-line p-5">
