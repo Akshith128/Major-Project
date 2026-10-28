@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Check, X } from 'lucide-react';
-import { ATTACK_FAMILIES, LLM_SOURCES, type Provenance, type Run, type WindowResult } from '../api';
+import { ATTACK_FAMILIES, decisionScore, LLM_SOURCES, type Provenance, type Run, type WindowResult } from '../api';
 import type { OperatorRole } from '../lib/operator';
 import { DecisionBadge, EmptyState, Kicker, Panel, SeverityBadge, SourceTag } from './ui';
 
@@ -127,7 +127,8 @@ function WindowDetail({
   const shown: [string, string][] = [
     ['TCP share', `${Math.round(f.tcp_share * 100)}%`],
     ['Dominant signature', `${Math.round(f.dominant_signature_share * 100)}%`],
-    ['TCP window diversity', f.unique_tcp_window_ratio.toFixed(2)],
+    // Hybrid runs drop the TCP-window feature (a testbed shortcut), so it may be absent.
+    ['TCP window diversity', f.unique_tcp_window_ratio === undefined ? 'not used' : f.unique_tcp_window_ratio.toFixed(2)],
     ['No-response flows', `${Math.round(f.no_response_share * 100)}%`],
     ['RST flows', `${Math.round(f.rst_share * 100)}%`],
     ['Packets / flow', f.mean_packets_per_flow.toFixed(1)],
@@ -158,8 +159,18 @@ function WindowDetail({
                 <>
                   <span>
                     Anomaly score <span className="font-mono text-fg">{w.detector.anomaly_score}</span> vs threshold {w.detector.threshold} →{' '}
-                    {w.detector.anomalous ? 'abnormal, sent to the explaining agent' : 'within normal traffic'}
+                    {w.detector.anomalous
+                      ? 'abnormal, sent to the explaining agent'
+                      : w.detector.model_anomalous
+                        ? 'unusual, but not flagged'
+                        : 'within normal traffic'}
                   </span>
+                  {w.detector.model_anomalous && w.detector.homogeneity !== undefined && w.detector.decided_by === 'detector' && (
+                    <span>
+                      Homogeneity <span className="font-mono text-fg">{w.detector.homogeneity}</span> vs gate 0.6 —{' '}
+                      {w.detector.anomalous ? 'both signals agree.' : 'below the gate, so the window was not flagged.'}
+                    </span>
+                  )}
                   <span>Looks less normal than {w.detector.confidence}% of known-normal windows.</span>
                   {w.detector.similar_incidents.length > 0 && (
                     <span>
@@ -175,7 +186,7 @@ function WindowDetail({
                 </span>
               )}
               <span className="relative block h-1.5 max-w-xs rounded-full bg-panel-2" aria-hidden="true">
-                <span className={`block h-full rounded-full ${w.monitoring.suspicious ? 'bg-warn' : 'bg-signal'}`} style={{ width: `${w.monitoring.score * 100}%` }} />
+                <span className={`block h-full rounded-full ${w.monitoring.suspicious ? 'bg-warn' : 'bg-signal'}`} style={{ width: `${decisionScore(w) * 100}%` }} />
                 <span className="absolute -top-1 h-3.5 w-0.5 bg-warn" style={{ left: `${w.monitoring.threshold * 100}%` }} />
               </span>
               {w.monitoring.signals.length > 0 && <span>{w.monitoring.signals.join(' · ')}</span>}
@@ -325,7 +336,7 @@ export function Incidents({
                           W{w.index}
                         </button>
                       </td>
-                      <td className="px-2 py-2 text-right font-mono">{w.monitoring.score.toFixed(2)}</td>
+                      <td className="px-2 py-2 text-right font-mono">{decisionScore(w).toFixed(2)}</td>
                       <td className="px-2 py-2">
                         {w.detection ? (w.detection.threat ? <span className="font-semibold text-crit">{w.detection.attack_type}</span> : <span className="text-ok">Cleared</span>) : <span className="text-muted">Not needed</span>}
                       </td>

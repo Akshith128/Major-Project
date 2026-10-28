@@ -333,6 +333,18 @@ export function providerName(provider: string | undefined | null): string {
 
 export const LLM_SOURCES = ['ollama', 'groq', 'gemini'];
 
+/**
+ * The 0–1 score the monitoring decision was taken on. In hybrid runs the
+ * detector flags a window only if its anomaly score AND its homogeneity score
+ * both reach the 0.6 gate, so the lower of the two decides. (When the incident
+ * memory decides there is no single score; `monitoring.suspicious` is the verdict.)
+ */
+export function decisionScore(w: WindowResult): number {
+  const { score, homogeneity_score } = w.monitoring;
+  if (w.detector?.decided_by === 'detector' && homogeneity_score !== undefined) return Math.min(score, homogeneity_score);
+  return score;
+}
+
 export function datasetLabel(id: string): string {
   return id.replace('_TrafficForML_CICFlowMeter.parquet', '').replace(/-/g, ' ');
 }

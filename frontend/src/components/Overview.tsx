@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { AlertTriangle, Play } from 'lucide-react';
-import { datasetLabel, providerName, type Account, type Dataset, type Health, type Run, type RunConfig, type RunMode } from '../api';
+import { datasetLabel, decisionScore, providerName, type Account, type Dataset, type Health, type Run, type RunConfig, type RunMode } from '../api';
 import { can } from '../lib/operator';
 import { DecisionBadge, EmptyState, Panel, SeverityBadge, Stat } from './ui';
 
@@ -178,8 +178,12 @@ function NewRunForm({
 
 function ScoreChart({ run, selected, onInspect }: { run: Run; selected: number | null; onInspect: (index: number) => void }) {
   const threshold = run.windows[0]?.monitoring.threshold ?? 0.6;
+  const hybrid = run.windows.some((w) => w.detector?.decided_by === 'detector');
   return (
-    <Panel title="Monitoring score by window" meta={`gate ${threshold} · click a bar to inspect`}>
+    <Panel
+      title="Monitoring score by window"
+      meta={`${hybrid ? 'lower of detector and homogeneity · ' : ''}gate ${threshold} · click a bar to inspect`}
+    >
       {/* Bars sit above a 4px pad + 18px label + 6px gap, so the gate line starts 28px up. */}
       <div className="relative flex h-56 items-end gap-2 overflow-x-auto pb-1">
         <div
@@ -189,18 +193,19 @@ function ScoreChart({ run, selected, onInspect }: { run: Run; selected: number |
         />
         {run.windows.map((w) => {
           const threat = w.detection?.threat;
+          const score = decisionScore(w);
           return (
             <button
               key={w.index}
               type="button"
               onClick={() => onInspect(w.index)}
-              aria-label={`Window ${w.index}: score ${w.monitoring.score}, ${threat ? 'threat' : 'clear'}`}
+              aria-label={`Window ${w.index}: score ${score.toFixed(2)}, ${threat ? 'threat' : 'clear'}`}
               className="group flex h-full min-w-9 flex-1 cursor-pointer flex-col items-center justify-end gap-1.5"
             >
               <span className="flex w-full flex-1 items-end justify-center">
                 <span
                   className={`w-full max-w-14 rounded-t-md group-hover:brightness-125 ${threat ? 'bg-crit' : w.monitoring.suspicious ? 'bg-warn/70' : 'bg-signal/50'} ${w.index === selected ? 'outline-2 outline-offset-2 outline-fg' : ''}`}
-                  style={{ height: `${Math.max(3, w.monitoring.score * 100)}%` }}
+                  style={{ height: `${Math.max(3, score * 100)}%` }}
                 />
               </span>
               <span className="h-[18px] font-mono text-xs text-muted">W{w.index}</span>

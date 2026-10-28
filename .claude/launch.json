@@ -25,6 +25,22 @@
         "dev"
       ],
       "port": 3000
+    },
+    {
+      "name": "check-backend",
+      "runtimeExecutable": ".venv\\Scripts\\python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "aegis.api:app", "--host", "127.0.0.1", "--port", "8011"],
+      "env": { "AEGIS_CORS_ORIGINS": "http://localhost:3111,http://127.0.0.1:3111" },
+      "port": 8011,
+      "autoPort": false
+    },
+    {
+      "name": "check-dashboard",
+      "runtimeExecutable": "npm.cmd",
+      "runtimeArgs": ["--prefix", "frontend", "exec", "--", "vite", "frontend", "--port=3111", "--strictPort"],
+      "env": { "VITE_AEGIS_API_URL": "http://127.0.0.1:8011" },
+      "port": 3111,
+      "autoPort": false
     }
   ]
 }
