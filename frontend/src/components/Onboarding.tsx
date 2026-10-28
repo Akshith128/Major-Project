@@ -189,6 +189,10 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, reme
             <ShieldMark />
             <span className="font-mono text-sm font-bold tracking-[0.3em]">AEGIS</span>
           </a>
+          {/* What the name stands for, in the wordmark's mono face; needs the wide header's room. */}
+          <span className="hidden border-l border-line-strong pl-6 font-mono text-xs tracking-[0.04em] whitespace-nowrap text-muted xl:inline">
+            Autonomous Engine for Governance, Intelligence and Security
+          </span>
           <div className="ml-auto hidden items-center gap-6 text-sm text-soft md:flex">
             <a href="#how" className="text-soft no-underline transition-colors hover:text-fg">How it works</a>
             <a href="#results" className="text-soft no-underline transition-colors hover:text-fg">Results</a>
