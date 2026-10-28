@@ -75,13 +75,13 @@ function LivePreview() {
 
   const current = SCENARIOS[scenario];
   return (
-    <div className="aegis-glass rounded-3xl border border-line p-6 sm:p-7" aria-label="Illustrative preview of the AEGIS pipeline" role="img">
+    <div className="aegis-glass rounded-2xl border border-line p-6 sm:p-7" aria-label="Illustrative preview of the AEGIS pipeline" role="img">
       <div className="flex items-center justify-between gap-3">
         <span className="font-mono text-xs tracking-[0.14em] text-muted uppercase">aegis · live pipeline</span>
         <span className="rounded-full border border-line px-2.5 py-1 font-mono text-[11px] text-muted">illustrative preview</span>
       </div>
 
-      <div key={scenario} className="aegis-fade-up mt-6 flex items-center justify-between gap-3 rounded-2xl border border-line bg-panel-2 px-4 py-3">
+      <div key={scenario} className="aegis-fade-up mt-6 flex items-center justify-between gap-3 rounded-xl border border-line bg-panel-2 px-4 py-3">
         <span className="flex items-center gap-2.5">
           <span className="h-2 w-2 rounded-full bg-signal aegis-pulse" aria-hidden="true" />
           <span className="font-mono text-sm">{current.window}</span>
@@ -199,7 +199,7 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, reme
         {/* Hero: value proposition left, the product itself as the artwork right. */}
         <section className={`${section} grid min-h-[calc(100vh-68px)] items-center gap-14 lg:grid-cols-[1.1fr_1fr]`}>
           <div className="flex flex-col gap-7">
-            <p className="aegis-fade-up m-0 font-mono text-xs tracking-[0.18em] text-muted uppercase">B.Tech major project · Agentic SOC</p>
+            <p className="aegis-fade-up m-0 font-mono text-xs tracking-[0.24em] text-muted uppercase">B.Tech major project · Agentic SOC</p>
             <h1 className="aegis-fade-up m-0 text-[clamp(40px,6vw,76px)] leading-[1.02] font-extrabold tracking-[-0.03em] text-balance" style={{ animationDelay: '80ms' }}>
               Threat detection that <span className="aegis-accent-text">shows its work.</span>
             </h1>
@@ -208,7 +208,7 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, reme
               suspicious window — and a human signs off before anything happens.
             </p>
             <div className="aegis-fade-up flex flex-wrap items-center gap-5" style={{ animationDelay: '240ms' }}>
-              <a href="#signin" className="flex h-12 items-center gap-2.5 rounded-xl bg-signal px-6 text-base font-bold text-signal-ink no-underline transition-transform duration-200 hover:-translate-y-0.5">
+              <a href="#signin" className="flex h-12 items-center gap-2.5 rounded-lg bg-signal px-6 text-base font-bold text-signal-ink no-underline transition-shadow duration-200 hover:shadow-[0_0_0_4px_var(--spot-fill),0_0_32px_-4px_var(--spot)]">
                 Sign in to the console <ArrowRight className="h-[18px] w-[18px]" aria-hidden="true" />
               </a>
               <span className="font-mono text-xs text-muted">
@@ -216,7 +216,7 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, reme
               </span>
             </div>
           </div>
-          <div className="aegis-fade-up" style={{ animationDelay: '200ms' }}>
+          <div className="aegis-fade-up aegis-orbit" style={{ animationDelay: '200ms' }}>
             <LivePreview />
           </div>
         </section>
@@ -224,7 +224,7 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, reme
         {/* How it works: asymmetric — a sticky statement left, the five agents right. */}
         <section id="how" className={`${section} grid gap-14 border-t border-line lg:grid-cols-[1fr_1.4fr]`}>
           <div className="flex flex-col gap-5 lg:sticky lg:top-28 lg:self-start">
-            <p className="m-0 font-mono text-xs tracking-[0.18em] text-signal uppercase">How it works</p>
+            <p className="m-0 font-mono text-xs tracking-[0.24em] text-signal uppercase">How it works</p>
             <h2 className="m-0 text-[clamp(30px,3.6vw,46px)] leading-[1.08] font-extrabold tracking-[-0.02em] text-balance">
               Five agents. One decision chain you can read end to end.
             </h2>
@@ -235,7 +235,7 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, reme
           </div>
           <ol className="m-0 flex list-none flex-col gap-4 p-0">
             {STEPS.map((s, i) => (
-              <li key={s.title} className="aegis-glass aegis-lift flex gap-5 rounded-2xl border border-line p-6">
+              <li key={s.title} className="aegis-glass aegis-lift flex gap-5 rounded-xl border border-line p-6">
                 <span className="font-mono text-sm text-muted">0{i + 1}</span>
                 <span className="flex flex-col gap-2">
                   <span className="flex items-center gap-2.5 text-lg font-bold">
@@ -253,7 +253,7 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, reme
         <section id="results" className={`${section} border-t border-line`}>
           <div className="grid items-end gap-12 lg:grid-cols-[1.5fr_1fr]">
             <div className="flex flex-col gap-4">
-              <p className="m-0 font-mono text-xs tracking-[0.18em] text-signal uppercase">Measured, not claimed</p>
+              <p className="m-0 font-mono text-xs tracking-[0.24em] text-signal uppercase">Measured, not claimed</p>
               <p className="m-0 font-mono text-[clamp(96px,16vw,200px)] leading-[0.9] font-bold tracking-[-0.05em] text-fg">{RESULTS.mcc}</p>
               <p className="m-0 max-w-lg text-lg text-soft">
                 Detection quality (Matthews correlation) on 800 CIC-IDS2018 windows the system never saw while it was being built,
@@ -267,7 +267,7 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, reme
                 ['Attacks caught', RESULTS.recall, 'recall on the same windows'],
                 ['Attack family named', RESULTS.family, 'once analysts confirm similar incidents'],
               ].map(([k, v, note]) => (
-                <div key={k} className="aegis-glass aegis-lift flex items-baseline justify-between gap-4 rounded-2xl border border-line px-5 py-4">
+                <div key={k} className="aegis-glass aegis-lift flex items-baseline justify-between gap-4 rounded-xl border border-line px-5 py-4">
                   <dt className="flex flex-col">
                     <span className="text-sm font-semibold">{k}</span>
                     <span className="text-xs text-muted">{note}</span>
@@ -282,7 +282,7 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, reme
         {/* Trust: statement left, the audit chain right. */}
         <section id="trust" className={`${section} grid items-center gap-14 border-t border-line lg:grid-cols-[1.2fr_1fr]`}>
           <div className="flex flex-col gap-6">
-            <p className="m-0 font-mono text-xs tracking-[0.18em] text-signal uppercase">Digital trust</p>
+            <p className="m-0 font-mono text-xs tracking-[0.24em] text-signal uppercase">Digital trust</p>
             <h2 className="m-0 text-[clamp(30px,3.6vw,46px)] leading-[1.08] font-extrabold tracking-[-0.02em] text-balance">
               Autonomy with a human hand on the switch.
             </h2>
@@ -300,7 +300,7 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, reme
               ))}
             </ul>
           </div>
-          <div className="aegis-glass rounded-3xl border border-line p-6 font-mono text-xs">
+          <div className="aegis-glass rounded-2xl border border-line p-6 font-mono text-xs">
             <p className="m-0 mb-4 tracking-[0.14em] text-muted uppercase">Signed audit trail</p>
             <ol className="m-0 flex list-none flex-col gap-2 p-0">
               {[
@@ -324,7 +324,7 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, reme
         {/* Sign in */}
         <section id="signin" className={`${section} grid items-start gap-14 border-t border-line lg:grid-cols-[1fr_1fr]`}>
           <div className="flex flex-col gap-5">
-            <p className="m-0 font-mono text-xs tracking-[0.18em] text-signal uppercase">Operator console</p>
+            <p className="m-0 font-mono text-xs tracking-[0.24em] text-signal uppercase">Operator console</p>
             <h2 className="m-0 text-[clamp(30px,3.6vw,46px)] leading-[1.08] font-extrabold tracking-[-0.02em]">Sign in</h2>
             <p className="m-0 text-soft">Your account’s role sets where you land and what you may do.</p>
             <ul className="m-0 flex list-none flex-col gap-2.5 p-0 text-sm text-soft">
@@ -337,7 +337,7 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, reme
             </ul>
           </div>
 
-          <form onSubmit={submit} className="aegis-glass flex w-full flex-col gap-5 rounded-3xl border border-line p-7">
+          <form onSubmit={submit} className="aegis-glass flex w-full flex-col gap-5 rounded-2xl border border-line p-7">
             {noAccounts && (
               <div role="status" className="flex flex-col gap-2 rounded-xl border border-warn-line bg-warn-soft p-4 text-sm text-warn">
                 <span className="flex items-center gap-2 font-semibold">
@@ -381,7 +381,7 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, reme
             <button
               type="submit"
               disabled={busy || !username.trim() || !password}
-              className="flex h-12 cursor-pointer items-center justify-center gap-2.5 rounded-xl bg-signal text-base font-bold text-signal-ink transition-transform duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+              className="flex h-12 cursor-pointer items-center justify-center gap-2.5 rounded-lg bg-signal text-base font-bold text-signal-ink transition-shadow duration-200 hover:shadow-[0_0_0_4px_var(--spot-fill),0_0_32px_-4px_var(--spot)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
             >
               {busy ? <span className="aegis-shimmer-text">Signing in…</span> : 'Sign in'}
               <ArrowRight className="h-[18px] w-[18px]" aria-hidden="true" />

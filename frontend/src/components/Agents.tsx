@@ -116,7 +116,7 @@ export function Agents({ run }: { run: Run | null }) {
 
       <ol className="m-0 grid list-none grid-cols-1 gap-4 p-0 lg:grid-cols-2">
         {AGENTS.map((a, i) => (
-          <li key={a.id} className="flex min-w-0 flex-col gap-3 aegis-glass aegis-lift rounded-2xl border border-line p-5">
+          <li key={a.id} className="flex min-w-0 flex-col gap-3 aegis-glass aegis-lift rounded-xl border border-line p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <Kicker className="text-signal">
                 Step {i + 1} · {a.kind}

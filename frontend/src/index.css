@@ -1,68 +1,68 @@
 @import "tailwindcss";
 
 @theme {
-  /* Obsidian (default): a monochrome base; one accent (AEGIS cyan) only for
-     interactive elements and key metrics. Red/amber/green are status only. */
-  --color-ink: #0B0B0C;
-  --color-ink-raised: #111113;
-  --color-panel: #161618;
-  --color-panel-2: #1E1E21;
-  --color-line: #26262A;
-  --color-line-strong: #36363C;
-  --color-fg: #F5F5F7;
-  --color-soft: #B4B4BC;
-  --color-muted: #8E8E98;
-  --color-signal: #38D6F5;
-  --color-signal-ink: #04202A;
-  --color-violet: #38D6F5;
-  --color-ok: #3DDC97;
+  /* Orbit (default): true black, neutral greys and one brand accent (AEGIS
+     lime) for interactive elements and key metrics. Red/amber/mint are status only. */
+  --color-ink: #000000;
+  --color-ink-raised: #050605;
+  --color-panel: #0C0E0C;
+  --color-panel-2: #151815;
+  --color-line: #262626;
+  --color-line-strong: #363936;
+  --color-fg: #FAFAFA;
+  --color-soft: #C9CFC6;
+  --color-muted: #A3A3A3;
+  --color-signal: #6FF218;
+  --color-signal-ink: #0A1600;
+  --color-violet: #6FF218;
+  --color-ok: #3DDCB0;
   --color-warn: #FFC15A;
   --color-crit: #FF8A8A;
   --color-info: #7CCBFF;
 
   /* Status tints: reserved for threat state, never decoration. */
-  --color-signal-soft: #0D2329;
+  --color-signal-soft: #0F1F06;
   --color-crit-soft: #2E1215;
   --color-crit-line: #66292F;
   --color-warn-soft: #2D220D;
   --color-warn-line: #66491A;
-  --color-ok-soft: #0E2519;
-  --color-ok-line: #1E5A3C;
+  --color-ok-soft: #0B241E;
+  --color-ok-line: #1D5A4A;
   --color-info-soft: #0F2030;
   --color-info-line: #24496B;
-  --color-on-ok: #04261A;
+  --color-on-ok: #03261C;
   --color-on-warn: #2A1C00;
   --color-on-crit: #2A0A0E;
 
-  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
 
-/* Canvas: an editorial light mode on warm cream (contrast checked). */
+/* Daylight: clean white with a deep green accent (contrast checked). */
 :root[data-theme="light"] {
-  --color-ink: #F6F4EF;
-  --color-ink-raised: #FBFAF7;
+  --color-ink: #F7F8F6;
+  --color-ink-raised: #FFFFFF;
   --color-panel: #FFFFFF;
-  --color-panel-2: #F1EEE7;
-  --color-line: #E4E0D6;
-  --color-line-strong: #CFC9BC;
-  --color-fg: #141413;
-  --color-soft: #45433E;
-  --color-muted: #5E5B54;
-  --color-signal: #0673A0;
+  --color-panel-2: #F1F3EF;
+  --color-line: #E4E7E1;
+  --color-line-strong: #CBD0C6;
+  --color-fg: #171717;
+  --color-soft: #3D413A;
+  --color-muted: #5B6057;
+  --color-signal: #2E7D00;
   --color-signal-ink: #FFFFFF;
-  --color-violet: #0673A0;
-  --color-ok: #0B7F4E;
+  --color-violet: #2E7D00;
+  --color-ok: #0A7A5C;
   --color-warn: #965C00;
   --color-crit: #BF2B37;
   --color-info: #1F68A8;
-  --color-signal-soft: #E2F1F6;
+  --color-signal-soft: #ECF6E3;
   --color-crit-soft: #FBECEC;
   --color-crit-line: #EDB9BD;
   --color-warn-soft: #FBF1DD;
   --color-warn-line: #E6C987;
-  --color-ok-soft: #E5F3EA;
-  --color-ok-line: #A6D6BB;
+  --color-ok-soft: #E3F3EE;
+  --color-ok-line: #A3D7C7;
   --color-info-soft: #E6EFF8;
   --color-info-line: #B6CDE6;
   --color-on-ok: #FFFFFF;
@@ -73,25 +73,25 @@
 
 :root {
   color-scheme: dark;
-  --glow-a: rgb(56 214 245 / 0.07);
-  --glow-b: rgb(255 255 255 / 0.025);
-  --glow-c: rgb(56 214 245 / 0.035);
-  --grid-line: rgb(255 255 255 / 0.035);
-  --card-shadow: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 16px 40px -24px rgb(0 0 0 / 0.8);
-  --card-hover-shadow: 0 1px 0 rgb(255 255 255 / 0.06) inset, 0 22px 48px -24px rgb(56 214 245 / 0.22);
-  --spot: rgb(56 214 245 / 0.55);
-  --spot-fill: rgb(56 214 245 / 0.06);
+  --glow-a: rgb(111 242 24 / 0.09);
+  --ring-line: rgb(111 242 24 / 0.07);
+  --star: rgb(255 255 255 / 0.32);
+  --grid-line: rgb(255 255 255 / 0.03);
+  --card-shadow: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 16px 40px -24px rgb(0 0 0 / 0.9);
+  --card-hover-shadow: 0 1px 0 rgb(255 255 255 / 0.06) inset, 0 22px 48px -24px rgb(111 242 24 / 0.22);
+  --spot: rgb(111 242 24 / 0.55);
+  --spot-fill: rgb(111 242 24 / 0.05);
 }
 
 :root[data-theme="light"] {
-  --glow-a: rgb(6 115 160 / 0.06);
-  --glow-b: rgb(20 20 19 / 0.02);
-  --glow-c: rgb(6 115 160 / 0.03);
-  --grid-line: rgb(20 20 19 / 0.045);
-  --card-shadow: 0 1px 2px rgb(20 20 19 / 0.04), 0 12px 30px -20px rgb(20 20 19 / 0.22);
-  --card-hover-shadow: 0 1px 2px rgb(20 20 19 / 0.05), 0 18px 38px -20px rgb(6 115 160 / 0.28);
-  --spot: rgb(6 115 160 / 0.5);
-  --spot-fill: rgb(6 115 160 / 0.05);
+  --glow-a: rgb(46 125 0 / 0.06);
+  --ring-line: rgb(46 125 0 / 0.08);
+  --star: rgb(23 23 23 / 0);
+  --grid-line: rgb(23 23 23 / 0.04);
+  --card-shadow: 0 1px 2px rgb(23 23 23 / 0.04), 0 12px 30px -20px rgb(23 23 23 / 0.2);
+  --card-hover-shadow: 0 1px 2px rgb(23 23 23 / 0.05), 0 18px 38px -20px rgb(46 125 0 / 0.28);
+  --spot: rgb(46 125 0 / 0.5);
+  --spot-fill: rgb(46 125 0 / 0.04);
 }
 
 @layer base {
@@ -101,9 +101,11 @@
     color: var(--color-fg);
     -webkit-font-smoothing: antialiased;
     min-height: 100vh;
+    overflow-x: clip; /* hero orbit art bleeds past the viewport edge */
   }
 
-  /* Ambient light: soft colour glows and a faint grid that fades out — depth without noise. */
+  /* Orbit backdrop: a sparse starfield and faint concentric rings around a lime
+     glow at the top of the page, fading out as content takes over. */
   body::before {
     content: "";
     position: fixed;
@@ -111,12 +113,17 @@
     z-index: -1;
     pointer-events: none;
     background:
-      radial-gradient(60rem 36rem at 8% -10%, var(--glow-a), transparent 60%),
-      radial-gradient(50rem 32rem at 100% 0%, var(--glow-b), transparent 60%),
-      radial-gradient(48rem 30rem at 50% 115%, var(--glow-c), transparent 60%),
-      linear-gradient(var(--grid-line) 1px, transparent 1px) 0 0 / 56px 56px,
-      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px) 0 0 / 56px 56px;
-    mask-image: linear-gradient(to bottom, black, black 55%, transparent 100%);
+      radial-gradient(1px 1px at 12% 18%, var(--star), transparent),
+      radial-gradient(1px 1px at 78% 9%, var(--star), transparent),
+      radial-gradient(1px 1px at 46% 32%, var(--star), transparent),
+      radial-gradient(1px 1px at 90% 41%, var(--star), transparent),
+      radial-gradient(1px 1px at 27% 56%, var(--star), transparent),
+      radial-gradient(1px 1px at 63% 64%, var(--star), transparent),
+      radial-gradient(1.5px 1.5px at 6% 78%, var(--star), transparent),
+      radial-gradient(1px 1px at 84% 84%, var(--star), transparent),
+      radial-gradient(42rem 26rem at 50% -8%, var(--glow-a), transparent 65%),
+      repeating-radial-gradient(circle at 50% -8%, transparent 0 119px, var(--ring-line) 119px 120px);
+    mask-image: linear-gradient(to bottom, black, black 45%, transparent 95%);
   }
 
   code, pre, .font-mono {
@@ -149,6 +156,7 @@
   -webkit-backdrop-filter: blur(16px) saturate(1.3);
 }
 .aegis-accent-text { color: var(--color-signal); }
+:root:not([data-theme="light"]) .aegis-accent-text { text-shadow: 0 0 28px rgb(111 242 24 / 0.35); }
 .aegis-accent-bar { background: var(--color-signal); }
 
 /* Cursor spotlight: a glowing border and soft fill that follow the pointer (set by lib/spotlight.ts). */
@@ -213,6 +221,24 @@
   .aegis-glass, .aegis-glass.aegis-lift:hover { transition: none; transform: none; }
 }
 
+/* Orbit art: concentric rings around a glowing core, behind the hero preview. */
+.aegis-orbit { position: relative; isolation: isolate; }
+.aegis-orbit::before {
+  content: "";
+  position: absolute;
+  inset: -18% -14%;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, var(--glow-a) 0 18%, transparent 46%),
+    repeating-radial-gradient(circle at 50% 50%, transparent 0 63px, var(--ring-line) 63px 64px);
+  mask-image: radial-gradient(circle at 50% 50%, black 35%, transparent 70%);
+  animation: aegis-orbit-spin 120s linear infinite;
+}
+@keyframes aegis-orbit-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .aegis-orbit::before { animation: none; } }
+
 .aegis-grid {
   background: transparent; /* the body's ambient grid shows through */
 }
@@ -234,8 +260,8 @@
   to { left: calc(100% - 10px); }
 }
 @keyframes aegis-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgb(56 214 245 / 0.55); }
-  50% { box-shadow: 0 0 0 8px rgb(56 214 245 / 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgb(111 242 24 / 0.55); }
+  50% { box-shadow: 0 0 0 8px rgb(111 242 24 / 0); }
 }
 @keyframes aegis-pop {
   0% { transform: scale(0.6); opacity: 0; }

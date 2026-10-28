@@ -1,5 +1,5 @@
 /**
- * Console theme: "dark" (Midnight) or "light" (Daylight). The choice is kept
+ * Console theme: "dark" (Orbit) or "light" (Daylight). The choice is kept
  * per browser; the first visit follows the operating system setting.
  */
 
@@ -19,7 +19,7 @@ export function storedTheme(): Theme {
 
 export function applyTheme(theme: Theme): void {
   document.documentElement.dataset.theme = theme;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'light' ? '#F6F4EF' : '#0B0B0C');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'light' ? '#F7F8F6' : '#000000');
   try {
     window.localStorage.setItem(KEY, theme);
   } catch {

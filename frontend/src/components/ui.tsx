@@ -24,7 +24,7 @@ export function ShieldMark({ size = 28, className = 'text-signal' }: { size?: nu
 }
 
 export function Kicker({ children, className = 'text-muted' }: { children: ReactNode; className?: string }) {
-  return <p className={`m-0 font-mono text-xs uppercase tracking-[0.14em] ${className}`}>{children}</p>;
+  return <p className={`m-0 font-mono text-xs uppercase tracking-[0.2em] ${className}`}>{children}</p>;
 }
 
 export function Panel({
@@ -41,7 +41,7 @@ export function Panel({
   bodyClassName?: string;
 }) {
   return (
-    <section className={`aegis-glass min-w-0 rounded-2xl border border-line ${className}`}>
+    <section className={`aegis-glass min-w-0 rounded-xl border border-line ${className}`}>
       {(title || meta) && (
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-5 py-4">
           {title && (
@@ -98,7 +98,7 @@ export function Stat({
   tone?: string;
 }) {
   return (
-    <div className="aegis-glass aegis-lift relative flex min-w-0 flex-col gap-1.5 overflow-hidden rounded-2xl border border-line px-5 py-4">
+    <div className="aegis-glass aegis-lift relative flex min-w-0 flex-col gap-1.5 overflow-hidden rounded-xl border border-line px-5 py-4">
       <span className="font-mono text-xs uppercase tracking-[0.1em] text-muted">{label}</span>
       <span className={`font-mono text-3xl font-bold tabular-nums ${tone}`}>
         {typeof value === 'number' ? <CountUp value={value} /> : value}
@@ -177,14 +177,14 @@ export function SkeletonPage() {
     <div className="flex flex-col gap-5" aria-busy="true" aria-label="Loading run">
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="aegis-glass flex flex-col gap-3 rounded-2xl border border-line px-5 py-4">
+          <div key={i} className="aegis-glass flex flex-col gap-3 rounded-xl border border-line px-5 py-4">
             <span className="aegis-skeleton h-3 w-24" />
             <span className="aegis-skeleton h-8 w-16" />
             <span className="aegis-skeleton h-3 w-32" />
           </div>
         ))}
       </div>
-      <div className="aegis-glass flex flex-col gap-4 rounded-2xl border border-line p-5">
+      <div className="aegis-glass flex flex-col gap-4 rounded-xl border border-line p-5">
         <span className="aegis-skeleton h-4 w-48" />
         <span className="aegis-skeleton h-40 w-full" />
       </div>
@@ -193,5 +193,5 @@ export function SkeletonPage() {
 }
 
 export function EmptyState({ children }: { children: ReactNode }) {
-  return <p className="aegis-glass m-0 rounded-2xl border border-dashed border-line-strong p-8 text-center text-sm text-muted">{children}</p>;
+  return <p className="aegis-glass m-0 rounded-xl border border-dashed border-line-strong p-8 text-center text-sm text-muted">{children}</p>;
 }

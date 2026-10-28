@@ -330,7 +330,7 @@ export function Governance({
           ['No silent actions', 'Responses are recommendations; nothing is executed without an approval on record, and the stop control halts the system.'],
           ['Labels isolated', 'Agents see only aggregate traffic features. Ground truth and baselines are attached after the agents finish.'],
         ].map(([t, d]) => (
-          <div key={t} className="flex flex-col gap-2 aegis-glass aegis-lift rounded-2xl border border-line p-5">
+          <div key={t} className="flex flex-col gap-2 aegis-glass aegis-lift rounded-xl border border-line p-5">
             <h3 className="m-0 text-base font-semibold">{t}</h3>
             <p className="m-0 text-sm text-soft">{d}</p>
           </div>

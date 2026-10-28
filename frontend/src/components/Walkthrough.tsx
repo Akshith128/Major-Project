@@ -389,7 +389,7 @@ export function Walkthrough({ run }: { run: Run | null }) {
         })}
       </Panel>
 
-      <section aria-label="Pipeline progress" className="aegis-glass rounded-2xl border border-line p-4">
+      <section aria-label="Pipeline progress" className="aegis-glass rounded-xl border border-line p-4">
         <ol className="m-0 flex list-none items-center gap-0 overflow-x-auto p-0 pb-1">
           {steps.map((s, i) => {
             const state = i < step ? 'done' : i === step ? 'current' : 'pending';

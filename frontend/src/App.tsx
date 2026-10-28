@@ -147,8 +147,8 @@ export default function App() {
                   type="button"
                   onClick={() => setPage(p.id)}
                   aria-current={on ? 'page' : undefined}
-                  className={`h-11 shrink-0 cursor-pointer rounded-lg px-3.5 text-sm font-medium whitespace-nowrap ${
-                    on ? 'bg-panel-2 text-fg shadow-[inset_0_-2px_0_var(--color-signal)]' : 'text-soft hover:text-fg'
+                  className={`h-11 shrink-0 cursor-pointer rounded-lg px-3.5 text-sm font-medium whitespace-nowrap transition-colors ${
+                    on ? 'bg-signal-soft text-signal font-semibold' : 'text-soft hover:bg-panel-2 hover:text-fg'
                   }`}
                 >
                   {p.label}
