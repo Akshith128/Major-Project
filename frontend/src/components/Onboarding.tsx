@@ -1,8 +1,12 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { lazy, Suspense, useEffect, useState, type FormEvent } from 'react';
 import { ArrowRight, BrainCircuit, Check, FileLock2, Gauge, KeyRound, ListChecks, Radar, ShieldCheck, Siren } from 'lucide-react';
 import { api, type Health, type Session } from '../api';
 import { PAGES, ROLES } from '../lib/operator';
 import { ShieldMark, ThemeToggle } from './ui';
+import { useTheme } from '../lib/theme';
+
+// Three.js is loaded only for the landing page.
+const OrbitScene = lazy(() => import('./OrbitScene').then((m) => ({ default: m.OrbitScene })));
 
 /* Measured on fresh, never-tuned-on CIC-IDS2018 windows (reports/detector-tuning-results.md). */
 const RESULTS = {
@@ -170,11 +174,15 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, reme
     }
   };
 
+  const theme = useTheme();
   const noAccounts = health && !health.accounts;
   const section = 'mx-auto w-full max-w-[1280px] px-5 py-24 sm:px-8 lg:py-32';
 
   return (
     <div className="flex min-h-screen flex-col">
+      <Suspense fallback={null}>
+        <OrbitScene theme={theme} />
+      </Suspense>
       <header className="aegis-header sticky top-0 z-20 border-b border-line">
         <nav className="mx-auto flex max-w-[1280px] items-center gap-6 px-5 py-3 sm:px-8" aria-label="Site">
           <a href="#top" className="flex items-center gap-2.5 text-fg no-underline">
@@ -196,18 +204,20 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, reme
       </header>
 
       <main id="top">
-        {/* Hero: value proposition left, the product itself as the artwork right. */}
-        <section className={`${section} grid min-h-[calc(100vh-68px)] items-center gap-14 lg:grid-cols-[1.1fr_1fr]`}>
-          <div className="flex flex-col gap-7">
-            <p className="aegis-fade-up m-0 font-mono text-xs tracking-[0.24em] text-muted uppercase">B.Tech major project · Agentic SOC</p>
-            <h1 className="aegis-fade-up m-0 text-[clamp(40px,6vw,76px)] leading-[1.02] font-extrabold tracking-[-0.03em] text-balance" style={{ animationDelay: '80ms' }}>
+        {/* Hero: the black hole is the centrepiece; the pitch sits centred beneath it. */}
+        <section className="mx-auto flex min-h-[calc(100svh-68px)] w-full max-w-[1280px] flex-col items-center justify-center px-5 pt-6 pb-20 text-center sm:px-8">
+          {/* Stage for the 3D black hole (OrbitScene centres and sizes itself here); CSS rings stand in without WebGL. */}
+          <div data-orbit-anchor className="aegis-orbit h-[48svh] min-h-[280px] w-full max-w-[1100px]" aria-hidden="true" />
+          <div className="flex max-w-3xl flex-col items-center gap-6">
+            <p className="aegis-fade-up m-0 font-mono text-xs tracking-[0.24em] text-muted uppercase">Agentic SOC</p>
+            <h1 className="aegis-fade-up m-0 text-[clamp(38px,5.6vw,72px)] leading-[1.02] font-extrabold tracking-[-0.03em] text-balance" style={{ animationDelay: '80ms' }}>
               Threat detection that <span className="aegis-accent-text">shows its work.</span>
             </h1>
-            <p className="aegis-fade-up m-0 max-w-xl text-lg leading-relaxed text-soft" style={{ animationDelay: '160ms' }}>
+            <p className="aegis-fade-up m-0 max-w-2xl text-lg leading-relaxed text-soft" style={{ animationDelay: '160ms' }}>
               Agentic AI for autonomous threat detection and response. Five agents detect, recognise, assess and explain every
               suspicious window — and a human signs off before anything happens.
             </p>
-            <div className="aegis-fade-up flex flex-wrap items-center gap-5" style={{ animationDelay: '240ms' }}>
+            <div className="aegis-fade-up flex flex-col items-center gap-4" style={{ animationDelay: '240ms' }}>
               <a href="#signin" className="flex h-12 items-center gap-2.5 rounded-lg bg-signal px-6 text-base font-bold text-signal-ink no-underline transition-shadow duration-200 hover:shadow-[0_0_0_4px_var(--spot-fill),0_0_32px_-4px_var(--spot)]">
                 Sign in to the console <ArrowRight className="h-[18px] w-[18px]" aria-hidden="true" />
               </a>
@@ -215,9 +225,6 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, reme
                 MCC {RESULTS.mcc} · false alarms {RESULTS.falseAlarms} · fresh CIC-IDS2018 windows
               </span>
             </div>
-          </div>
-          <div className="aegis-fade-up aegis-orbit" style={{ animationDelay: '200ms' }}>
-            <LivePreview />
           </div>
         </section>
 
@@ -232,6 +239,7 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, reme
               Each window of 100 network flows travels through the same LangGraph pipeline. Every step leaves evidence behind, so an
               analyst can see exactly why the system acted.
             </p>
+            <LivePreview />
           </div>
           <ol className="m-0 flex list-none flex-col gap-4 p-0">
             {STEPS.map((s, i) => (
@@ -393,7 +401,7 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, reme
       <footer className="border-t border-line">
         <div className="mx-auto flex max-w-[1280px] flex-wrap justify-between gap-3 px-5 py-8 font-mono text-xs text-muted sm:px-8">
           <span>AEGIS · Enhancing Cybersecurity Governance and Digital Trust</span>
-          <span>LangGraph · Ollama · FastAPI · CIC-IDS2018</span>
+          <span>LangGraph · Ollama · Backend server · CIC-IDS2018</span>
         </div>
       </footer>
     </div>

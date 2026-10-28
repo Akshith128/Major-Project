@@ -256,7 +256,7 @@ export default function App() {
       <footer className="border-t border-line">
         <div className="mx-auto flex max-w-[1760px] flex-wrap justify-between gap-2.5 px-4 py-5 text-sm text-muted sm:px-6">
           <span>AEGIS · {PROJECT_TITLE}: {PROJECT_SUBTITLE}</span>
-          <span className="font-mono">LangGraph · {providerName(health?.llm.provider)} · FastAPI · CIC-IDS2018</span>
+          <span className="font-mono">LangGraph · {providerName(health?.llm.provider)} · Backend server · CIC-IDS2018</span>
         </div>
       </footer>
     </div>

@@ -221,6 +221,11 @@
   .aegis-glass, .aegis-glass.aegis-lift:hover { transition: none; transform: none; }
 }
 
+/* WebGL orbit scene (landing page): once it draws, it replaces the CSS rings. */
+.aegis-orbit-scene canvas { display: block; width: 100%; height: 100%; }
+:root:has(.aegis-orbit-scene canvas) body::before { opacity: 0.35; }
+:root:has(.aegis-orbit-scene canvas) .aegis-orbit::before { display: none; }
+
 /* Orbit art: concentric rings around a glowing core, behind the hero preview. */
 .aegis-orbit { position: relative; isolation: isolate; }
 .aegis-orbit::before {

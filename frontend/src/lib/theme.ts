@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+
 /**
  * Console theme: "dark" (Orbit) or "light" (Daylight). The choice is kept
  * per browser; the first visit follows the operating system setting.
@@ -25,4 +27,16 @@ export function applyTheme(theme: Theme): void {
   } catch {
     // Not persisted; still applied for this visit.
   }
+}
+
+/** The theme currently applied to the page; follows the toggle as it changes. */
+export function useTheme(): Theme {
+  const read = (): Theme => (document.documentElement.dataset.theme === 'light' ? 'light' : 'dark');
+  const [theme, setTheme] = useState<Theme>(read);
+  useEffect(() => {
+    const observer = new MutationObserver(() => setTheme(read()));
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => observer.disconnect();
+  }, []);
+  return theme;
 }
