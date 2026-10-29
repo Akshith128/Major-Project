@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import type { Theme } from '../lib/theme';
 
 /**
- * Hero centrepiece: a black hole with a lime accretion disk, a photon ring, a
+ * Hero centrepiece: a black hole with a cyan accretion disk, a photon ring, a
  * lensed arc of the disk's far side, tilted orbits with five agent lights, and a
  * starfield. It centres itself on the hero's [data-orbit-anchor] stage and is
  * sized so every orbit stays inside that stage, clear of the copy below it.
@@ -27,26 +27,26 @@ type Palette = {
 
 const PALETTES: Record<Theme, Palette> = {
   dark: {
-    disk: new THREE.Color('#6FF218'),
-    hot: new THREE.Color('#F0FFDC'),
-    halo: new THREE.Color('#8CFF3A'),
-    orbit: new THREE.Color('#6FF218'),
+    disk: new THREE.Color('#38D6F5'),
+    hot: new THREE.Color('#EAFBFF'),
+    halo: new THREE.Color('#6FE3FF'),
+    orbit: new THREE.Color('#38D6F5'),
     orbitOpacity: 0.2,
-    agent: new THREE.Color('#E4FFC8'),
-    glow: new THREE.Color('#6FF218'),
+    agent: new THREE.Color('#D6F7FF'),
+    glow: new THREE.Color('#38D6F5'),
     stars: new THREE.Color('#FFFFFF'),
     starOpacity: 0.75,
     light: false,
   },
   light: {
-    disk: new THREE.Color('#3E9A00'),
-    hot: new THREE.Color('#0B2A00'),
-    halo: new THREE.Color('#2E7D00'),
-    orbit: new THREE.Color('#2E7D00'),
+    disk: new THREE.Color('#0A86B8'),
+    hot: new THREE.Color('#021A2A'),
+    halo: new THREE.Color('#0673A0'),
+    orbit: new THREE.Color('#0673A0'),
     orbitOpacity: 0.28,
-    agent: new THREE.Color('#1F5C00'),
-    glow: new THREE.Color('#5BC80F'),
-    stars: new THREE.Color('#1A2416'),
+    agent: new THREE.Color('#04476A'),
+    glow: new THREE.Color('#2BB6DE'),
+    stars: new THREE.Color('#1A2030'),
     starOpacity: 0.28,
     light: true,
   },
@@ -319,8 +319,17 @@ export function OrbitScene({ theme }: { theme: Theme }) {
       renderer.render(scene, camera);
     };
 
+    // Past the hero, draw one final (scrolled-away) frame and then idle, so a
+    // jump from a nav link never leaves a half-faded frame on screen.
+    let settled = false;
     const loop = () => {
-      if (window.scrollY < window.innerHeight) draw();
+      if (window.scrollY < window.innerHeight) {
+        draw();
+        settled = false;
+      } else if (!settled) {
+        draw();
+        settled = true;
+      }
       frame = requestAnimationFrame(loop);
     };
 

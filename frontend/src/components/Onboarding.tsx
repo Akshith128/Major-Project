@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState, type FormEvent } from 'react';
-import { ArrowRight, BrainCircuit, Check, FileLock2, Gauge, KeyRound, ListChecks, Radar, ShieldCheck, Siren } from 'lucide-react';
+import { ArrowRight, BrainCircuit, Check, EyeOff, FileLock2, Gauge, KeyRound, ListChecks, Minus, Radar, ShieldCheck, Siren, X } from 'lucide-react';
 import { api, type Health, type Session } from '../api';
 import { ROLES } from '../lib/operator';
 import { ShieldMark, ThemeToggle } from './ui';
@@ -148,6 +148,52 @@ const STEPS = [
   { icon: ShieldCheck, title: 'Govern', text: 'Policy AEGIS-GOV-1 decides what needs a human. Every decision and approval is hash-chained and signed.' },
 ];
 
+/* The kill chain, and what AEGIS can see of it from network flows (CIC-IDS2018 families). */
+const KILL_CHAIN: { stage: string; seen: boolean; what: string; family?: string }[] = [
+  { stage: 'Reconnaissance', seen: true, what: 'Hosts and ports are probed from inside the network.', family: 'Infiltration scans' },
+  { stage: 'Weaponization', seen: false, what: 'The exploit is built on the attacker’s side. No traffic reaches you yet.' },
+  { stage: 'Delivery', seen: true, what: 'Repeated logins hammer FTP, SSH and web forms.', family: 'Brute Force' },
+  { stage: 'Exploitation', seen: true, what: 'Crafted requests try to break the web application.', family: 'SQL injection · XSS' },
+  { stage: 'Installation', seen: false, what: 'Malware settles on a host. That happens on the endpoint, not the wire.' },
+  { stage: 'Command & control', seen: true, what: 'Infected machines check in with the attacker on a schedule.', family: 'Botnet' },
+  { stage: 'Actions on objectives', seen: true, what: 'Floods take services down.', family: 'DoS · DDoS' },
+];
+
+type Cell = 'yes' | 'no' | 'part' | string;
+const COMPARE: { row: string; cells: [Cell, Cell, Cell] }[] = [
+  { row: 'Learns from normal traffic, no attack examples', cells: ['yes', 'no', 'no'] },
+  { row: 'Names the attack family', cells: ['yes', 'part', 'part'] },
+  { row: 'Explains each decision in plain language', cells: ['yes', 'part', 'no'] },
+  { row: 'Human approval before any response', cells: ['yes', 'no', 'no'] },
+  { row: 'Signed, tamper-evident audit trail', cells: ['yes', 'no', 'no'] },
+  { row: 'Detection quality on unseen traffic (MCC)', cells: ['0.78', '0.66', '0.21'] },
+];
+
+function CompareCell({ value, strong }: { value: Cell; strong?: boolean }) {
+  if (value === 'yes')
+    return (
+      <span className="inline-flex items-center gap-2 text-signal">
+        <Check className="h-4 w-4" aria-hidden="true" />
+        <span className="text-sm text-fg">Yes</span>
+      </span>
+    );
+  if (value === 'no')
+    return (
+      <span className="inline-flex items-center gap-2 text-muted">
+        <X className="h-4 w-4" aria-hidden="true" />
+        <span className="text-sm">No</span>
+      </span>
+    );
+  if (value === 'part')
+    return (
+      <span className="inline-flex items-center gap-2 text-muted">
+        <Minus className="h-4 w-4" aria-hidden="true" />
+        <span className="text-sm">Partly</span>
+      </span>
+    );
+  return <span className={`font-mono text-lg font-bold ${strong ? 'text-signal' : 'text-soft'}`}>{value}</span>;
+}
+
 export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, remember: boolean) => void }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -195,7 +241,9 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, reme
           </span>
           <div className="ml-auto hidden items-center gap-6 text-sm text-soft md:flex">
             <a href="#how" className="text-soft no-underline transition-colors hover:text-fg">How it works</a>
+            <a href="#killchain" className="text-soft no-underline transition-colors hover:text-fg">Kill chain</a>
             <a href="#results" className="text-soft no-underline transition-colors hover:text-fg">Results</a>
+            <a href="#compare" className="text-soft no-underline transition-colors hover:text-fg">Compare</a>
             <a href="#trust" className="text-soft no-underline transition-colors hover:text-fg">Trust</a>
           </div>
           <div className="ml-auto flex items-center gap-3 md:ml-0">
@@ -267,6 +315,47 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, reme
           </ol>
         </section>
 
+        {/* Kill chain: where each attack stage meets AEGIS, including the two it cannot see. */}
+        <section id="killchain" className={`${section} border-t border-line`}>
+          <div className="flex max-w-3xl flex-col gap-5">
+            <p className="m-0 font-mono text-xs tracking-[0.24em] text-signal uppercase">The kill chain</p>
+            <h2 className="m-0 text-[clamp(30px,3.6vw,46px)] leading-[1.08] font-extrabold tracking-[-0.02em] text-balance">
+              Attacks move in seven steps. AEGIS breaks the five that touch the network.
+            </h2>
+            <p className="m-0 max-w-2xl text-soft">
+              AEGIS reads traffic, so it sees every stage that leaves flows behind. The two it cannot see are marked as such: pair
+              AEGIS with endpoint protection for those.
+            </p>
+          </div>
+          <ol className="relative m-0 mt-14 grid list-none gap-3 p-0 lg:grid-cols-7 lg:gap-0">
+            <span className="absolute top-[19px] right-[7%] left-[7%] hidden h-px bg-line-strong lg:block" aria-hidden="true" />
+            {KILL_CHAIN.map((k, i) => (
+              <li key={k.stage} className={`relative flex gap-4 lg:flex-col lg:items-center lg:gap-4 lg:px-2 lg:text-center`}>
+                <span
+                  className={`relative z-10 flex h-10 w-10 flex-none items-center justify-center rounded-full border font-mono text-sm font-bold ${
+                    k.seen ? 'border-signal bg-ink text-signal shadow-[0_0_0_6px_var(--spot-fill)]' : 'border-dashed border-line-strong bg-ink text-muted'
+                  }`}
+                >
+                  {i + 1}
+                </span>
+                <span className="flex min-w-0 flex-col gap-2 pb-4 lg:items-center">
+                  <span className="font-semibold">{k.stage}</span>
+                  <span className="text-sm text-soft">{k.what}</span>
+                  {k.seen ? (
+                    <span className="mt-1 inline-flex w-fit items-center gap-1.5 rounded-full border border-signal/40 bg-signal-soft px-2.5 py-1 font-mono text-[11px] text-signal">
+                      <Radar className="h-3 w-3" aria-hidden="true" /> {k.family}
+                    </span>
+                  ) : (
+                    <span className="mt-1 inline-flex w-fit items-center gap-1.5 rounded-full border border-line px-2.5 py-1 font-mono text-[11px] text-muted">
+                      <EyeOff className="h-3 w-3" aria-hidden="true" /> Not visible in traffic
+                    </span>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </section>
+
         {/* Results: the headline number is the largest thing on the page. */}
         <section id="results" className={`${section} border-t border-line`}>
           <div className="grid items-end gap-12 lg:grid-cols-[1.5fr_1fr]">
@@ -295,6 +384,47 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (session: Session, reme
               ))}
             </dl>
           </div>
+        </section>
+
+        {/* Comparison: the same questions asked of AEGIS and the two usual alternatives. */}
+        <section id="compare" className={`${section} border-t border-line`}>
+          <div className="flex max-w-3xl flex-col gap-5">
+            <p className="m-0 font-mono text-xs tracking-[0.24em] text-signal uppercase">The comparison</p>
+            <h2 className="m-0 text-[clamp(30px,3.6vw,46px)] leading-[1.08] font-extrabold tracking-[-0.02em] text-balance">
+              Why agents, and not just rules or a classifier.
+            </h2>
+          </div>
+          <div className="aegis-glass mt-12 overflow-x-auto rounded-2xl border border-line">
+            <table className="w-full min-w-[640px] border-collapse text-left">
+              <caption className="sr-only">AEGIS compared with signature rules and a supervised classifier</caption>
+              <thead>
+                <tr className="border-b border-line">
+                  <th scope="col" className="px-6 py-5 text-sm font-medium text-muted">What you get</th>
+                  <th scope="col" className="bg-signal-soft px-6 py-5">
+                    <span className="flex items-center gap-2 font-bold text-fg">
+                      <ShieldMark size={20} /> AEGIS
+                    </span>
+                  </th>
+                  <th scope="col" className="px-6 py-5 font-semibold text-soft">Signature rules</th>
+                  <th scope="col" className="px-6 py-5 font-semibold text-soft">Supervised classifier</th>
+                </tr>
+              </thead>
+              <tbody>
+                {COMPARE.map(({ row, cells }) => (
+                  <tr key={row} className="border-b border-line last:border-b-0">
+                    <th scope="row" className="px-6 py-4 text-sm font-medium text-fg">{row}</th>
+                    <td className="bg-signal-soft px-6 py-4"><CompareCell value={cells[0]} strong /></td>
+                    <td className="px-6 py-4"><CompareCell value={cells[1]} /></td>
+                    <td className="px-6 py-4"><CompareCell value={cells[2]} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="m-0 mt-4 max-w-3xl text-xs text-muted">
+            MCC on CIC-IDS2018 windows that were not used to build or tune each method. Rules and classifier come from the multi-day
+            benchmark; the classifier is a Random Forest trained on the other day-files.
+          </p>
         </section>
 
         {/* Trust: statement left, the audit chain right. */}

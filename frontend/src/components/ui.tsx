@@ -3,22 +3,22 @@ import { Moon, Sun } from 'lucide-react';
 import { applyTheme, storedTheme, type Theme } from '../lib/theme';
 import type { GovernanceDecision, Severity, WindowResult } from '../api';
 
+/**
+ * The AEGIS mark: a shield holding an event horizon. The ring is the horizon
+ * every window passes through; the tilted orbit and its node are the agents.
+ */
 export function ShieldMark({ size = 28, className = 'text-signal' }: { size?: number; className?: string }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.7}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      className={className}
-    >
-      <path d="M12 2.5l8 3v6c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10v-6l8-3z" />
-      <path d="M8.5 12l2.5 2.5 4.5-5" />
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden="true" className={className}>
+      <path
+        d="M16 2.6 27.2 6.5v8.6c0 7-4.6 12.2-11.2 14.3C9.4 27.3 4.8 22.1 4.8 15.1V6.5L16 2.6Z"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinejoin="round"
+      />
+      <ellipse cx="16" cy="15.6" rx="8.6" ry="2.7" transform="rotate(-22 16 15.6)" stroke="currentColor" strokeWidth={1.3} opacity={0.6} />
+      <circle cx="16" cy="15.6" r="4.3" fill="var(--color-ink)" stroke="currentColor" strokeWidth={1.8} />
+      <circle cx="23.9" cy="12.4" r="1.7" fill="currentColor" />
     </svg>
   );
 }

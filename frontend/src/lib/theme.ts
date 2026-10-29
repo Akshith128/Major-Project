@@ -21,7 +21,7 @@ export function storedTheme(): Theme {
 
 export function applyTheme(theme: Theme): void {
   document.documentElement.dataset.theme = theme;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'light' ? '#F7F8F6' : '#000000');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'light' ? '#F5F6FB' : '#000000');
   try {
     window.localStorage.setItem(KEY, theme);
   } catch {
